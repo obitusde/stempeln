@@ -25,14 +25,15 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
-(leer – alles bis 12.11. umgesetzt in App v0.2.0 / Skripte v4.6 / Makros v4.3)
+1. (12.11.) Pause in Minuten anzeigen: geplant (30/45 min nach Ort), läuft gerade (seit … min), schon gemacht (… min).
+2. (12.11.) Zähler Arbeitstage (ohne Wochenende) bis zum geplanten Arbeitsende **1.6.2028**.
 
 Umgesetzt 12.11. (Christof: „Setze das alles jetzt um“):
 - Makros v4.3: erste Prüfung nach ~5 s, bis zu 8 Runden „Bildschirm lesen → `pruef.sh` (R=1..8) → Agenda da?“; **Wartezeiten stehen in `pruef.sh`** (falsche Seite/gesperrt → sofort neu öffnen + 5 s, ohne Adresse erst ab Runde 3, höchstens 3× neu; lädt noch → 2 s), nach dem Tipp wartet `haupt.sh` 3 s. Kein „Startbildschirm“ mehr: `ende.sh` ruft `zurueck` → **App Stempeln kommt nach jedem Lauf nach vorn**.
 - App v0.2.0: Status mit Fortschrittsbalken, Zeilen Arbeitszeit Soll / Bereits gearbeitet / Fehlt noch / Voraussichtlich Schluss (+ Erklärung, `logik/Anzeige.kt`, Pause 30/45 min eingerechnet), „Überstunden“ (= Saldo bis gestern) mit Arbeitstagen zu 8 h 25; Heures du jour, Rattrapage (= Urlaubs-Ansparminuten, egal), HS ausgeblendet; Planen +15/+30/+45 min/+1 h/17:00/17:30/Uhrzeit, Knopf „Zurück“; Urlaub: erster + **letzter Urlaubstag** mit Hinweis, Status zeigt Urlaub und „geht wieder los am …“; Meldungen verschwinden nach 60 s; Umlaute; Inhalt nicht mehr unter der Statusleiste.
 
 ## 4. Offen / zu testen (Pixel)
-00. v0.2.1 / v4.6 / v4.3 (12.11.): Secrets gesetzt, v0.2.1 = erste fest signierte Version → einmal alte App deinstallieren, v0.2.1 installieren, Rechte neu (danach Updates per Knopf), Skripte aktualisieren, Makros v4.3 importieren, v4.2 löschen. Prüfen: Startseite wird schnell erkannt? App kommt nach Stempeln/Stand zurück? Anzeige verständlich?
+00. ✅ 12.11.2026 „Klappt alles“: v0.2.1 / v4.6 / v4.3: Secrets gesetzt, v0.2.1 = erste fest signierte Version → einmal alte App deinstallieren, v0.2.1 installieren, Rechte neu (danach Updates per Knopf), Skripte aktualisieren, Makros v4.3 importieren, v4.2 löschen. Prüfen: Startseite wird schnell erkannt? App kommt nach Stempeln/Stand zurück? Anzeige verständlich?
 0. ✅ 12.11.2026: App v0.1.0 läuft, Import Stempeln/Stand v4.2 ok, „Stand lesen“ aus der App startet MacroDroid, Konto (Saldo 13:25, Rattrapage 71:40) kommt in der App an, Skripte v4.5, Shizuku erkannt.
 1. App v0.1.0 installieren, Rechte (Dateien, Benachrichtigungen, Standort „immer“), Skripte v4.5 laden, Makros v4.2 importieren, alte Makros (Wächter, Spaeter, Frei, Heute nicht, Update, Stempeln/Stand v4.1) löschen.
 2. Knopf Stempeln/Stand lesen startet MacroDroid? Kommt der neue Stand in der App an (Broadcast aus ende.sh)? Konto-Werte richtig?
