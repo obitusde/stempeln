@@ -1,0 +1,439 @@
+#STEMPELPAKET 4.5
+# Stempel-Skripte fuer MacroDroid (Makro "Stempeln Update" packt aus). Nicht von Hand aendern.
+#DATEI kopf.sh
+# Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV)
+# Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
+SKV=4.5
+B=/sdcard/Download/stempeln
+mkdir -p $B
+DEBUG=0
+SOLL=505
+# Einstempel-Erinnerung ab START (Di/Fr, 435 = 07:15) bzw. START2 (Mo/Mi/Do, 465 = 07:45), Standort nur bis ORTBIS (660 = 11:00)
+# Der Waechter wacht Mo-Fr um 07:00 auf (Shizuku-Pruefung) und holt den Standort nur morgens bis zum Einstempeln, alle 15 min
+START=435
+START2=465
+ORTBIS=660
+# Pause vorbei nach PAUSE_SS min (SUR SITE), sonst PAUSE_KURZ min (HOME OFFICE, HUB)
+PAUSE_SS=45
+PAUSE_KURZ=30
+# Orte: eigene Datei auf dem Handy (schreibt das private Makro "Stempeln Update"), nie im Repo
+ORTE=$(cat $B/orte.txt 2>/dev/null)
+# Welche Seite zeigt Chrome? $1 = Bildschirminhalt -> SEITE=clock|fremd, U=Adresse aus der Adressleiste
+# (Die Startseite .../ux/home zeigt auch "HOME OFFICE" - deshalb zaehlt die Adresse; ohne Adresse: Abschnitt "TIMBRER AVEC MOTIF")
+seite_art() { U=$(grep -o 'webquartz/ux/[a-z]*' "$1" 2>/dev/null | head -1)
+  case "$U" in
+    */clock) SEITE=clock ;;
+    "") if grep -q 'TIMBRER AVEC MOTIF' "$1" 2>/dev/null; then SEITE=clock; else SEITE=fremd; fi ;;
+    *) SEITE=fremd ;;
+  esac; }
+# App "Stempeln" benachrichtigen (neuer Stand / Konto) - sie stellt danach ihre Wecker neu
+app_melden() { am broadcast -n io.github.obitusde.stempeln/.StandEmpfaenger -a io.github.obitusde.stempeln.STAND </dev/null >/dev/null 2>&1; }
+# Sperrbildschirm im Bildschirminhalt $1?
+sperrbild() { grep -qE 'systemui:id/(keyguard|device_entry)' "$1" 2>/dev/null; }
+# Sperrbildschirm sichtbar? (0 = nein)
+gesperrt() { dumpsys window </dev/null 2>&1 | grep -cE 'isKeyguardShowing=true|mShowingLockscreen=true|mDreamingLockscreen=true'; }
+# Meldung mit Uhrzeit vorne: note TEXT TITEL TAG
+note() { cmd notification post -S bigtext -t "$2" "$3" "$(date +%H:%M) · $1" </dev/null >/dev/null 2>&1; }
+# Vorschlag an den Waechter: Text steht im Titel (MacroDroid zeigt not_title), Kennung im Text:
+# "Stempel-Vorschlag" = Knoepfe [Stempeln] [Schon gestempelt] [Spaeter], "Stempel-Heimfrage" = zu Hause, [Heute nicht] statt [Spaeter]
+signal() { cmd notification post -S bigtext -t "$(date +%H:%M) · $1" vorschlag "${2:-Stempel-Vorschlag}" </dev/null >/dev/null 2>&1; }
+jetzt() { if [ -n "$T_JETZT" ]; then set -- $T_JETZT; else set -- $(date '+%Y %m %d %H %M %u %s'); fi
+  JJ=$1; MM=${2#0}; TT=${3#0}; HH=${4#0}; MI=${5#0}; WT=$6; EPOCH=$7; HEUTE=$1-$2-$3; NOW=$(( ${HH:-0}*60 + ${MI:-0} )); }
+hm() { echo "$(( $1 / 60 )):$(( $1 % 60 / 10 ))$(( $1 % 10 ))"; }
+minuten() { h=${1%%:*}; m=${1#*:}; h=${h#0}; m=${m#0}; echo $(( ${h:-0}*60 + ${m:-0} )); }
+mikro() { g=${1%%.*}; f=${1#*.}; [ "$f" = "$1" ] && f=0; f=${f}000000; f=${f%"${f#??????}"}; echo $(( g*1000000 + 1$f - 1000000 )); }
+wurzel() { n=$1; x=$n; [ $x -le 1 ] && { echo $x; return; }; y=$(( (x+1)/2 )); while [ $y -lt $x ]; do x=$y; y=$(( (x + n/x)/2 )); done; echo $x; }
+abst() { a=$(( $1 - $3 )); b=$(( $2 - $4 )); [ $a -lt 0 ] && a=$(( -a )); [ $b -lt 0 ] && b=$(( -b ))
+  if [ $a -gt 200000 ] || [ $b -gt 200000 ]; then echo 99999; return; fi
+  a=$(( a*1112/10000 )); b=$(( b*766/10000 )); wurzel $(( a*a + b*b )); }
+# naechster Ort zu $1 $2 -> TYP DIST RAD NAME (TYP leer = kein gueltiger Standort)
+ort() { TYP=""; DIST=""; RAD=""; NAME=""
+  case "$1$2" in *[0-9].[0-9]*[0-9].[0-9]*) ;; *) return ;; esac
+  la=$(mikro "$1"); lo=$(mikro "$2")
+  set -f; alt=$IFS; IFS='|'
+  for o in $ORTE; do
+    IFS=';'; set -- $o; IFS='|'
+    [ $# -ge 4 ] || continue
+    e=$(abst $la $lo $(mikro "$2") $(mikro "$3")); r=${5:-800}
+    if [ -z "$DIST" ] || [ "$e" -lt "$DIST" ]; then TYP=$1; DIST=$e; RAD=$r; NAME=$4; fi
+  done
+  IFS=$alt; set +f; }
+# Knopf-Text fuer Typ $1 (nur der Knopf, ohne Ortsname)
+label() { case "$1" in HO) echo "HOME OFFICE" ;; HUB) echo "HUB" ;; SS) echo "SUR SITE" ;; *) echo "unbekannter Ort, du tippst selbst" ;; esac; }
+# Welcher Knopf fuer Richtung $1 (EIN/AUS)? Heute schon eingestempelt -> Knopf vom Einstempeln (Z_ORT, du bleibst dort),
+# sonst Standort (vorher ort aufrufen) -> KTYP KNAME LABEL (KTYP leer = unbekannter Ort)
+wahl() { if [ -n "$Z_ORT" ]; then KTYP=$Z_ORT; KNAME=$Z_NAME
+  elif [ -n "$TYP" ] && [ "$DIST" -le "$RAD" ]; then KTYP=$TYP; KNAME=$NAME
+  else KTYP=""; KNAME=""; fi
+  LABEL=$(label "$KTYP"); }
+# Woerterbuch aus "Bildschirminhalt lesen" -> Zeilen "x|y|Text"
+elemente() { x=""; y=""
+  while IFS= read -r z; do
+    case "$z" in
+      "-- [centerX]: "*) x=${z#*: } ;;
+      "-- [centerY]: "*) y=${z#*: } ;;
+      "-- [text]: "*) s=${z#*\]: }; [ -n "$s" ] && echo "$x|$y|$s" ;;
+    esac
+  done < "$1"; }
+# Stand aus Elementliste $1: STATUS (IN/OUT/?), PRES (Minuten, leer = nicht gelesen), LETZTE, BUCH, PAUSE, Knopf-Positionen
+# AGENDA=1 nur wenn die Agenda fertig geladen ist (Stundenzahl 23:00 in der Agenda-Spalte) - sonst ist der Knopf-Text unzuverlaessig
+stand() { STATUS="?"; HOT=""; PRES=""; AGENDA=0; K_SOLDE=""; K_JOUR=""; K_RATT=""; K_HS=""; HOX=113; HOY=436; SSX=70; SSY=567; HUX=172; HUY=567; ZEITEN=""
+  while IFS='|' read -r x y s; do
+    case "$x$y" in *[!0-9]*|"") continue ;; esac
+    if [ "$x" -lt 600 ]; then
+      case "$s" in
+        *" HOME OFFICE") HOT=$s; HOX=$x; HOY=$y
+          case "$s" in SORTIE*) STATUS=IN ;; ENTR*) STATUS=OUT ;; esac ;;
+        "SUR SITE") SSX=$x; SSY=$y ;;
+        HUB) HUX=$x; HUY=$y ;;
+        *"Solde heure"*) K_SOLDE=${s%%[!0-9:-]*} ;;
+        *"Heures du jour"*) K_JOUR=${s%%[!0-9:-]*} ;;
+        *"Rattrapage"*) K_RATT=${s%%[!0-9:-]*} ;;
+        *"HS cumul"*) K_HS=${s%%[!0-9:-]*} ;;
+        *"Temps de pr"*) p=${s%%[!0-9:]*}; case "$p" in *[0-9]:[0-9][0-9]) PRES=$(minuten "$p") ;; esac ;;
+      esac
+    elif [ "$x" -le 720 ]; then
+      [ "$s" = "23:00" ] && AGENDA=1
+    else
+      case "$s" in [0-2][0-9]:[0-5][0-9]) ZEITEN="$ZEITEN $s" ;; esac
+    fi
+  done < "$1"
+  # halb geladen: Knopf/Zeiten nicht verwenden
+  HALB=0; [ $AGENDA = 1 ] || { [ -n "$HOT" ] && HALB=1; STATUS="?"; PRES=""; ZEITEN=""; K_SOLDE=""; K_JOUR=""; K_RATT=""; K_HS=""; }
+  LETZTE=""; BUCH=0; PAUSE=0; aus=""
+  # Zeiten abwechselnd rein/raus; Luecken nach einem Ausstempeln 11:00-14:30 = Mittagspause
+  for s in $(for s in $ZEITEN; do echo $s; done | sort -u); do
+    LETZTE=$s; BUCH=$(( BUCH + 1 )); m=$(minuten $s)
+    if [ $(( BUCH % 2 )) = 0 ]; then aus=$m
+    elif [ -n "$aus" ]; then [ $aus -ge 660 ] && [ $aus -le 870 ] && PAUSE=$(( PAUSE + m - aus )); aus=""; fi
+  done; }
+# Lauf-Ordner (von start.sh angelegt)
+lauf() { D=$(cat $B/aktuell.txt 2>/dev/null); [ -d "$D" ] || { D=$B/lauf; mkdir -p "$D"; }
+  L=$D/log.txt; exec 2>>"$L"; }
+t() { [ $DEBUG = 1 ] && echo "$(date +%T) $*" >> "$L"; }
+#DATEI start.sh
+# Start von Stempeln / Stand: Lauf-Ordner, Sperre, aufs Entsperren warten, Leiste schliessen
+jetzt
+echo $EPOCH > $B/lock.txt
+D=$B/lauf; rm -rf "$D"; mkdir -p "$D"; echo "$D" > $B/aktuell.txt
+L=$D/log.txt; exec 2>>"$L"
+t "$TEXT (Skripte v$SKV) - Start"
+# gesperrt (z. B. geplantes Stempeln aus der App): Bildschirm wecken
+[ "$(gesperrt)" != 0 ] && input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
+n=0
+while [ "$(gesperrt)" != 0 ] && [ $n -lt 60 ]; do
+  [ $n = 0 ] && note "Bitte entsperren - dann geht es weiter" "Stempeln" stempeln
+  sleep 1; n=$(( n + 1 ))
+done
+cmd statusbar collapse </dev/null >/dev/null 2>&1
+t "entsperrt nach $n s, Leiste zu"
+note "$TEXT ..." "Stempeln" stempeln
+#DATEI neu.sh
+# Stempelseite nicht erkannt (Accueil, noch am Laden oder Bildschirm aus/gesperrt): nochmal oeffnen, 7 s warten
+# Huelle bricht nach 20 s ab -> hoechstens 8 s aufs Entsperren warten (danach gibt die Huelle noch bis 24 s fuer die Seite)
+lauf
+input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
+bis=$(( $(date +%s) + 8 )); n=0
+while [ "$(gesperrt)" != 0 ] && [ $(date +%s) -lt $bis ]; do
+  [ $n = 0 ] && note "Bitte entsperren - ich pruefe noch die Stempelseite" "Stempeln" stempeln
+  n=$(( n + 1 )); sleep 1
+done
+t "neu: Bildschirm geweckt, $n s aufs Entsperren gewartet"
+am start -a android.intent.action.VIEW -d "https://aptime.cloud-horoquartz.fr/webquartz/ux/clock" -p com.android.chrome --es com.android.browser.application_id macrodroid.stempeln </dev/null >/dev/null 2>&1
+sleep 7
+#DATEI pruef.sh
+# Stempelseite nach ~18 s noch nicht fertig (Agenda fehlt): Bildschirminhalt pruefen
+# Handy gesperrt / Chrome auf einer anderen Seite (z. B. Startseite .../ux/home nach neuer Anmeldung) -> Stempelseite neu oeffnen
+# Stempelseite da, laedt nur langsam -> nichts tun, die Huelle wartet weiter (bis 24 s)
+lauf
+cp $B/seite-roh.txt "$D/seite-pruef.txt" 2>/dev/null
+seite_art "$D/seite-pruef.txt"
+NEU=0; [ "$SEITE" = clock ] || NEU=1
+input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
+bis=$(( $(date +%s) + 12 )); n=0
+while [ "$(gesperrt)" != 0 ] && [ $(date +%s) -lt $bis ]; do
+  [ $n = 0 ] && note "Bitte entsperren - ich warte noch auf die Stempelseite" "Stempeln" stempeln
+  n=$(( n + 1 )); NEU=1; sleep 1
+done
+t "pruef: Seite=$SEITE (${U:-ohne Adresse}), $n s gesperrt, neu oeffnen=$NEU"
+if [ $NEU = 1 ]; then
+  am start -a android.intent.action.VIEW -d "https://aptime.cloud-horoquartz.fr/webquartz/ux/clock" -p com.android.chrome --es com.android.browser.application_id macrodroid.stempeln </dev/null >/dev/null 2>&1
+  sleep 7
+fi
+#DATEI haupt.sh
+# Stempeln: Stand lesen, Knopf waehlen, tippen (oder bewusst nicht)
+# Seite nicht bereit (falsche Seite, halb geladen, nicht lesbar) -> nichts tippen, ende.sh versucht es auf der neu geoeffneten Seite nochmal
+lauf
+jetzt
+cp $B/seite-roh.txt "$D/seite-vor.txt" 2>/dev/null
+elemente "$D/seite-vor.txt" > "$D/elemente-vor.txt"
+stand "$D/elemente-vor.txt"
+seite_art "$D/seite-vor.txt"
+t "Seite vorher: $SEITE ($U) Status=$STATUS Praesenz=$PRES Letzte=$LETZTE Buchungen=$BUCH Agenda=$AGENDA"
+ort "$LAT" "$LON"
+t "Standort -> $TYP $NAME $DIST m (Radius $RAD)"
+# Vorschlag (Knopf in der Erinnerung), gilt 30 min
+WUNSCH=""; V_ZIEL=""; V_ZEIT=0; V_LABEL=""
+[ -f $B/vorschlag.txt ] && . $B/vorschlag.txt && [ $(( EPOCH - ${V_ZEIT:-0} )) -lt 1800 ] && WUNSCH=$V_ZIEL
+[ -n "$WUNSCH" ] || V_LABEL=""
+rm -f $B/vorschlag.txt
+Z_DATUM=""; Z_ORT=""; Z_NAME=""; [ -f $B/zustand.txt ] && . $B/zustand.txt
+[ "$Z_DATUM" = "$HEUTE" ] || { Z_ORT=""; Z_NAME=""; }
+if [ "$SEITE" != clock ] || [ "$HALB" = 1 ] || [ "$STATUS" = "?" ] || [ -z "$PRES" ]; then
+  AKTION=nochmal; KORR=""; KTYP=""; KNAME=""; ERGT="Stempelseite beim ersten Mal nicht bereit"
+else
+  ZWEIT=0; . $S/tipp.sh
+fi
+{ echo "A_AKTION=$AKTION"; echo "A_STATUS=$STATUS"; echo "A_TYP=$KTYP"; echo "A_NAME='$KNAME'"; echo "A_TEXT='$ERGT'"; echo "A_KORR=$KORR"
+  echo "A_PRES=$PRES"; echo "A_LETZTE=$LETZTE"; echo "A_BUCH=$BUCH"; echo "A_PAUSE=$PAUSE"
+  echo "A_WUNSCH=$WUNSCH"; echo "A_VLABEL='$V_LABEL'"; } > "$D/aktion.txt"
+t "Aktion: $AKTION - $ERGT"
+#DATEI tipp.sh
+# Knopf waehlen und tippen (oder bewusst nicht) - von haupt.sh und (zweiter Versuch) ende.sh geladen
+# braucht: STATUS + Knopf-Positionen (stand), Standort (ort), Z_ORT/Z_NAME, WUNSCH/V_LABEL (Erinnerung), ZWEIT=1 im zweiten Versuch
+# -> AKTION (tipp|manuell|keine) KORR ERGT KTYP KNAME LABEL
+if [ "$STATUS" = IN ]; then wahl AUS; else wahl EIN; fi
+t "Wunsch '${WUNSCH:-keiner}' ($V_LABEL), jetzt: $LABEL"
+AKTION=keine; KORR=""
+if [ "$WUNSCH" = EIN ] && [ "$STATUS" = IN ]; then
+  ERGT="Du warst schon eingestempelt - nichts getippt"; KORR=1
+elif [ "$WUNSCH" = AUS ] && [ "$STATUS" = OUT ]; then
+  ERGT="Du warst schon ausgestempelt - nichts getippt"; KORR=1
+elif [ -n "$V_LABEL" ] && [ "$V_LABEL" != "$LABEL" ]; then
+  ERGT="Ort passt nicht mehr zur Erinnerung ($V_LABEL, jetzt $LABEL) - nichts getippt. Stimmt $LABEL, starte Stempeln nochmal"; KORR=1
+elif [ -z "$KTYP" ]; then
+  if [ "$ZWEIT" = 1 ]; then ERGT="Unbekannter Ort - bitte selbst auf der Stempelseite tippen"
+  else
+    AKTION=manuell
+    ERGT="Unbekannter Ort"
+    note "Unbekannter Ort - tippe selbst auf der Seite den passenden Knopf. Ich lese in 60 s nach." "Stempeln" stempeln
+    sleep 60
+  fi
+else
+  case "$KTYP" in
+    HO)  X=$HOX; Y=$HOY ;;
+    SS)  X=$SSX; Y=$SSY ;;
+    HUB) X=$HUX; Y=$HUY ;;
+  esac
+  input tap $X $Y </dev/null >/dev/null 2>&1
+  t "Tipp $LABEL bei $X,$Y rc=$?"
+  AKTION=tipp; ERGT=$LABEL
+fi
+#DATEI ende.sh
+# Stempeln / Stand: neuen Stand lesen, Buchung pruefen, Zustand fuer den Waechter speichern, Meldung
+# Konnte Stempeln beim ersten Lesen nicht tippen (Seite nicht bereit), wird hier auf der neu geoeffneten Seite getippt (zweiter Versuch)
+lauf
+jetzt
+cp $B/seite-roh.txt "$D/seite-nach.txt" 2>/dev/null
+elemente "$D/seite-nach.txt" > "$D/elemente-nach.txt"
+stand "$D/elemente-nach.txt"
+seite_art "$D/seite-nach.txt"
+[ "$SEITE" = clock ] || { STATUS="?"; PRES=""; }
+t "Seite nachher: $SEITE ($U) Status=$STATUS Praesenz=$PRES Letzte=$LETZTE Buchungen=$BUCH Pause=$PAUSE Agenda=$AGENDA"
+A_AKTION=keine; A_STATUS="?"; A_TYP=""; A_NAME=""; A_TEXT=""; A_KORR=""; A_PRES=""; A_LETZTE=""; A_BUCH=0; A_PAUSE=0; A_WUNSCH=""; A_VLABEL=""
+[ -f "$D/aktion.txt" ] && . "$D/aktion.txt"
+Z_DATUM=""; Z_ORT=""; Z_NAME=""; [ -f $B/zustand.txt ] && . $B/zustand.txt
+[ "$Z_DATUM" = "$HEUTE" ] || { Z_ORT=""; Z_NAME=""; }
+ort "$LAT" "$LON"
+GUT=0; [ -n "$PRES" ] && [ "$STATUS" != "?" ] && GUT=1
+# Konto-Werte der Seite fuer die App (nur bei echt gelesener Seite)
+[ $GUT = 1 ] && { echo "K_DATUM=$HEUTE"; echo "K_LESE=$EPOCH"; echo "K_SOLDE=$K_SOLDE"; echo "K_JOUR=$K_JOUR"; echo "K_RATT=$K_RATT"; echo "K_HS=$K_HS"; echo "K_PRES=$PRES"; } > $B/konto.txt
+VERM=""
+# zweiter Versuch: beim ersten Lesen war die Seite nicht bereit
+if [ "$A_AKTION" = nochmal ]; then
+  if [ $GUT = 1 ]; then
+    WUNSCH=$A_WUNSCH; V_LABEL=$A_VLABEL; ZWEIT=1
+    . $S/tipp.sh
+    A_AKTION=$AKTION; A_TEXT=$ERGT; A_KORR=$KORR; A_TYP=$KTYP; A_NAME=$KNAME
+    if [ "$AKTION" = tipp ]; then
+      A_STATUS=$STATUS; A_PRES=$PRES; A_LETZTE=$LETZTE; A_BUCH=$BUCH; A_PAUSE=$PAUSE
+      VERM="Stempelseite kam erst beim zweiten Oeffnen"; GUT=0
+      sleep 3
+    fi
+  else
+    A_AKTION=keine; A_TEXT="Stempelseite auch beim zweiten Oeffnen nicht bereit - nichts getippt, bitte selbst stempeln"
+  fi
+fi
+# Nach einem Tipp nicht nachlesbar (z. B. Handy gesperrt): Stand annehmen, damit der Waechter nicht falsch erinnert
+if [ $GUT = 0 ] && [ "$A_AKTION" = tipp ] && [ -n "$A_PRES" ]; then
+  if [ -z "$VERM" ]; then
+    if sperrbild "$D/seite-nach.txt" || [ "$(gesperrt)" != 0 ]; then VERM="Handy war gesperrt"
+    elif [ "$SEITE" != clock ]; then VERM="Chrome zeigte danach eine andere Seite"
+    elif [ "$HALB" = 1 ]; then VERM="Seite nicht fertig geladen"
+    else VERM="Seite nicht gelesen"; fi
+  fi
+  PRES=$A_PRES; LETZTE=$(hm $NOW); BUCH=$(( A_BUCH + 1 )); PAUSE=$A_PAUSE
+  if [ "$A_STATUS" = IN ]; then STATUS=OUT
+  else STATUS=IN; la=$(minuten "${A_LETZTE:-0:00}")
+    [ $la -ge 660 ] && [ $la -le 870 ] && [ $NOW -gt $la ] && PAUSE=$(( PAUSE + NOW - la )); fi
+  t "angenommen ($VERM): Status=$STATUS Praesenz=$PRES Letzte=$LETZTE"
+fi
+if [ -n "$PRES" ] && [ "$STATUS" != "?" ]; then
+  # Knopf merken, mit dem eingestempelt wurde (fuers Ausstempeln)
+  case "$A_AKTION" in
+    tipp) Z_ORT=$A_TYP; Z_NAME=$A_NAME ;;
+    manuell) Z_ORT=""; Z_NAME="" ;;
+    *) if [ -z "$Z_ORT" ] && [ "$STATUS" = IN ]; then wahl EIN; Z_ORT=$KTYP; Z_NAME=$KNAME; fi ;;
+  esac
+  { echo "Z_DATUM=$HEUTE"; echo "Z_STATUS=$STATUS"; echo "Z_PRES=$PRES"; echo "Z_LESE=$EPOCH"; echo "Z_LETZTE=$LETZTE"; echo "Z_BUCH=$BUCH"
+    echo "Z_ORT=$Z_ORT"; echo "Z_NAME='$Z_NAME'"; } > $B/zustand.txt
+  ZL=""; [ -n "$Z_ORT" ] && ZL=" - $(label "$Z_ORT")"
+  REST=$(( SOLL - PRES ))
+  if [ "$STATUS" = IN ]; then
+    PZU=0; [ $PAUSE = 0 ] && [ $NOW -lt 870 ] && PZU=45
+    if [ $REST -gt 0 ]; then INFO="heute $(hm $PRES) - noch $(hm $REST) -> fertig um $(hm $(( (NOW + REST + PZU) % 1440 )))"
+      [ $PZU -gt 0 ] && INFO="$INFO (mit 45 min Pause)"
+    else INFO="heute $(hm $PRES) - 8 h 25 schon voll"; fi
+    KOPF="Eingestempelt${LETZTE:+ $LETZTE}$ZL"
+  else
+    if [ $REST -gt 0 ]; then INFO="heute $(hm $PRES) - noch $(hm $REST) offen"
+      L2=$(minuten "${LETZTE:-0:00}")
+      [ $L2 -ge 660 ] && [ $L2 -le 870 ] && INFO="$INFO
+Pause 30 min bis $(hm $(( L2 + 30 ))), 45 min bis $(hm $(( L2 + 45 )))"
+    else INFO="heute $(hm $PRES) - Feierabend"; fi
+    KOPF="Ausgestempelt${LETZTE:+ $LETZTE}"
+    [ "$A_AKTION" = tipp ] && KOPF="$KOPF - $(label "$A_TYP")"
+  fi
+  if [ -n "$VERM" ]; then MELD="$A_TEXT getippt - $VERM, Buchung nicht nachgeprueft. Gemerkt:
+$KOPF
+$INFO"
+  elif [ "$A_AKTION" = tipp ] && [ "$STATUS" = "$A_STATUS" ]; then
+    MELD="ACHTUNG: $A_TEXT getippt, aber der Stand hat sich nicht geaendert ($KOPF). Bitte pruefen!"
+  elif [ "$A_AKTION" = manuell ] && [ "$STATUS" != "$A_STATUS" ]; then MELD="$KOPF (von Hand)
+$INFO"
+  elif [ -n "$A_KORR" ]; then MELD="$A_TEXT - Stand gemerkt:
+$KOPF
+$INFO"
+  elif [ -n "$A_TEXT" ] && [ "$A_AKTION" != tipp ]; then MELD="$A_TEXT
+$KOPF - $INFO"
+  else MELD="$KOPF
+$INFO"; fi
+  # gemerkte Erinnerung passt nicht mehr zum Stand -> Waechter fragt neu
+  rm -f $B/vorschlag.txt
+else
+  if sperrbild "$D/seite-nach.txt"; then MELD="Handy war gesperrt - Stand nicht gelesen, bitte selbst pruefen"
+  elif [ "$SEITE" != clock ]; then MELD="Stempelseite nicht erreicht (Chrome zeigte ${U:-eine andere Seite}) - Stand nicht gelesen, bitte selbst pruefen"
+  elif [ "$HALB" = 1 ]; then MELD="Stempelseite nicht fertig geladen - Stand nicht gelesen, bitte selbst pruefen"
+  else MELD="Stempelseite nicht gelesen - bitte selbst pruefen"; fi
+  [ "$A_AKTION" = tipp ] && MELD="$A_TEXT getippt, aber danach: $MELD"
+  [ "$A_AKTION" = keine ] && [ -n "$A_TEXT" ] && MELD=$A_TEXT
+fi
+t "Meldung: $MELD"
+note "$MELD" "Stempeln" stempeln
+rm -f $B/lock.txt
+app_melden
+#DATEI waechter.sh
+# Waechter: Mo-Fr alle 5 min (07:00-19:30) - Arbeitstag? Stand + Uhrzeit -> Erinnerung oder nichts
+# Standort nur morgens bis zum Einstempeln (ab START/START2, alle 15 min): ORTLAUF=0 -> Signal "Stempel-Ort",
+# der Waechter holt dann den Standort und startet das Skript mit ORTLAUF=1 nochmal. Nach dem Einstempeln: Ort vom Einstempeln.
+jetzt
+W=$B/waechter.log
+w() { [ $DEBUG = 1 ] && echo "$(date '+%d.%m. %H:%M') $*" >> $W; }
+exec 2>>$B/fehler.log
+# laeuft gerade Stempeln?
+[ -f $B/lock.txt ] && [ $(( EPOCH - $(cat $B/lock.txt) )) -lt 240 ] && { w "Stempeln laeuft - nichts"; exit 0; }
+# Arbeitstag? Mo-Fr, kein Waadtlaender Feiertag, nicht frei
+tagnr() { y=$1; m=$2; d=$3; [ $m -le 2 ] && y=$(( y - 1 )); era=$(( y / 400 )); yoe=$(( y - era*400 ))
+  if [ $m -gt 2 ]; then mp=$(( m - 3 )); else mp=$(( m + 9 )); fi
+  doy=$(( (153*mp + 2)/5 + d - 1 )); doe=$(( yoe*365 + yoe/4 - yoe/100 + doy )); echo $(( era*146097 + doe - 719468 )); }
+feiertag() { y=$1; n=$2
+  a=$(( y % 19 )); b=$(( y / 100 )); c=$(( y % 100 )); d=$(( b / 4 )); e=$(( b % 4 )); f=$(( (b + 8) / 25 )); g=$(( (b - f + 1) / 3 ))
+  h=$(( (19*a + b - d - g + 15) % 30 )); i=$(( c / 4 )); k=$(( c % 4 )); l=$(( (32 + 2*e + 2*i - h - k) % 7 )); m=$(( (a + 11*h + 22*l) / 451 ))
+  om=$(( (h + l - 7*m + 114) / 31 )); od=$(( (h + l - 7*m + 114) % 31 + 1 )); os=$(tagnr $y $om $od)
+  s1=$(tagnr $y 9 1); wd=$(( (s1 + 4) % 7 )); bettag=$(( s1 + (7 - wd) % 7 + 15 ))
+  for f in $(tagnr $y 1 1) $(tagnr $y 1 2) $(( os - 2 )) $(( os + 1 )) $(( os + 39 )) $(( os + 50 )) $(tagnr $y 8 1) $bettag $(tagnr $y 12 25); do
+    [ $f = $n ] && return 0; done; return 1; }
+HN=$(tagnr $JJ $MM $TT)
+FN=0
+case "$FREI" in *[0-9].*[0-9].*[0-9]*) fd=${FREI%%.*}; r=${FREI#*.}; fm=${r%%.*}; fy=${r#*.}; fd=${fd#0}; fm=${fm#0}; [ ${#fy} = 2 ] && fy=20$fy; FN=$(tagnr $fy $fm $fd) ;; esac
+GRUND=""
+[ $WT -gt 5 ] && GRUND="Wochenende"
+feiertag $JJ $HN && GRUND="Feiertag"
+[ $HN -lt $FN ] && GRUND="frei bis $FREI"
+# Ruhe-Signal bei jedem Lauf (schaltet den Waechter bis morgen aus; ging es verloren, kommt es beim naechsten Lauf wieder)
+ruhe() { echo "$HEUTE" > $B/ruhe.txt; w "Ruhe: $1"; note "Stempel-Ruhe · $1" "Stempel-Ruhe" ruhe; exit 0; }
+# alter Waechter (v4.1) holt den Standort immer selbst
+[ -z "$ORTLAUF" ] && { ORTLAUF=0; [ -n "$LAT" ] && ORTLAUF=1; }
+[ -n "$GRUND" ] && ruhe "$GRUND"
+# Stand vom letzten Stempeln
+Z_DATUM=""; Z_STATUS=OUT; Z_PRES=0; Z_LESE=$EPOCH; Z_LETZTE=""; Z_BUCH=0; Z_ORT=""; Z_NAME=""
+[ -f $B/zustand.txt ] && . $B/zustand.txt
+[ "$Z_DATUM" != "$HEUTE" ] && { Z_STATUS=OUT; Z_PRES=0; Z_LESE=$EPOCH; Z_LETZTE=""; Z_BUCH=0; Z_ORT=""; Z_NAME=""; }
+P=$Z_PRES; [ "$Z_STATUS" = IN ] && P=$(( Z_PRES + (EPOCH - Z_LESE) / 60 ))
+[ "$Z_STATUS" = OUT ] && [ $P -ge $SOLL ] && ruhe "Feierabend ($(hm $P))"
+# Einstempel-Erinnerung ab START (Di/Fr) bzw. START2 (Mo/Mi/Do)
+AB=$START2; { [ $WT = 2 ] || [ $WT = 5 ]; } && AB=$START
+[ $NOW -lt $START ] && exit 0
+# spaeter?
+[ -f $B/spaeter.txt ] && [ $EPOCH -lt $(cat $B/spaeter.txt) ] && { w "spaeter - nichts"; exit 0; }
+ZIEL=""; MSG=""; GRUND=""; WDH=15; TYP=""; DIST=""
+if [ "$Z_STATUS" = IN ]; then
+  if [ $P -ge $SOLL ]; then ZIEL=AUS; GRUND="8 h 25 voll"; UE=$(( P - SOLL ))
+    MSG="8 h 25 voll seit $(hm $(( (NOW - UE + 1440) % 1440 )))"; [ $UE -ge 5 ] && MSG="$MSG (+$UE min)"; MSG="$MSG - ausstempeln?"
+  elif [ $NOW -ge 705 ] && [ $NOW -lt 870 ] && [ $(minuten "${Z_LETZTE:-0:00}") -lt 660 ]; then
+    ZIEL=AUS; GRUND="Mittagspause"; MSG="Mittagspause (heute $(hm $P)) - ausstempeln?"
+  fi
+elif [ "$Z_BUCH" = 0 ]; then
+  # noch nicht eingestempelt: Standort noetig, nur morgens und hoechstens alle 15 min
+  [ $NOW -ge $AB ] && [ $NOW -lt $ORTBIS ] || exit 0
+  if [ $ORTLAUF = 0 ]; then
+    OZ=$(cat $B/ort-zeit.txt 2>/dev/null); [ -n "$OZ" ] && [ $(( EPOCH - OZ )) -lt 840 ] && { w "Ort erst wieder in 15 min"; exit 0; }
+    echo $EPOCH > $B/ort-zeit.txt; w "Standort anfordern"
+    note "Stempel-Ort · Standort holen" "Stempel-Ort" ort; exit 0
+  fi
+  echo $EPOCH > $B/ort-zeit.txt
+  ort "$LAT" "$LON"
+  DA=""; [ -n "$TYP" ] && [ "$DIST" -le "$RAD" ] && DA=$TYP
+  # [Heute nicht] in der Zuhause-Erinnerung: heute keine Zuhause-Erinnerung mehr
+  [ "$DA" = HO ] && [ "$(cat $B/heute-nicht.txt 2>/dev/null)" = "$HEUTE" ] && DA=""
+  case "$DA" in
+    SS|HUB) ZIEL=EIN; GRUND="Ankunft"; MSG="Angekommen - einstempeln?" ;;
+    HO) ZIEL=EIN; GRUND="Home Office"
+        if [ $WT = 2 ] || [ $WT = 5 ]; then MSG="Zu Hause - einstempeln?"; else MSG="Noch zu Hause - heute Home Office? Einstempeln?"; fi ;;
+  esac
+else
+  # nach dem Ausstempeln in der Mittagszeit: Pause vorbei (SUR SITE 45 min, sonst 30 min), nach 60 min einmal nachfragen
+  LZ=$(minuten "${Z_LETZTE:-0:00}"); PZ=$PAUSE_KURZ; [ "$Z_ORT" = SS ] && PZ=$PAUSE_SS
+  if [ $LZ -ge 660 ] && [ $LZ -le 870 ] && [ $NOW -ge $(( LZ + PZ )) ] && [ $NOW -lt $(( LZ + 60 )) ]; then
+    ZIEL=EIN; GRUND="Pause vorbei"; MSG="Pause seit $(( NOW - LZ )) min (heute $(hm $P)) - wieder einstempeln?"
+  elif [ $LZ -ge 660 ] && [ $LZ -le 870 ] && [ $NOW -ge $(( LZ + 60 )) ]; then
+    # vielleicht am Badge eingestempelt - einmal nachfragen
+    ZIEL=EIN; GRUND="Nachfrage"; WDH=9999
+    MSG="Seit $Z_LETZTE ausgestempelt ($(( NOW - LZ )) min) - schon wieder eingestempelt? Sonst jetzt einstempeln?"; fi
+fi
+w "Stand=$Z_STATUS heute=$(hm $P) Ort=${TYP:--} ${DIST:-} -> ${ZIEL:-nichts}"
+[ -z "$ZIEL" ] && exit 0
+wahl $ZIEL
+MSG="$MSG → $LABEL"
+V_ZIEL=""; V_ZEIT=0; V_DATUM=""; V_LABEL=""; V_GRUND=""
+[ -f $B/vorschlag-letzter.txt ] && . $B/vorschlag-letzter.txt
+# gleiche Frage (Richtung, Knopf und Grund) erst nach WDH Minuten wiederholen
+if [ "$V_ZIEL" = "$ZIEL" ] && [ "$V_LABEL" = "$LABEL" ] && [ "$V_GRUND" = "$GRUND" ] && [ "$V_DATUM" = "$HEUTE" ] && [ $(( EPOCH - V_ZEIT )) -lt $(( WDH * 60 - 120 )) ]; then exit 0; fi
+{ echo "V_ZIEL=$ZIEL"; echo "V_ZEIT=$EPOCH"; echo "V_DATUM=$HEUTE"; echo "V_LABEL='$LABEL'"; echo "V_GRUND='$GRUND'"; } > $B/vorschlag-letzter.txt
+cp $B/vorschlag-letzter.txt $B/vorschlag.txt
+w "Vorschlag: $MSG"
+if [ "$GRUND" = "Home Office" ]; then signal "$MSG" Stempel-Heimfrage; else signal "$MSG"; fi
+#DATEI spaeter.sh
+# Knopf [Spaeter]: 15 min keine Erinnerung
+jetzt
+V_GRUND=""; [ -f $B/vorschlag-letzter.txt ] && . $B/vorschlag-letzter.txt
+echo $(( EPOCH + 900 )) > $B/spaeter.txt
+rm -f $B/vorschlag.txt
+note "Spaeter${V_GRUND:+: $V_GRUND} - Erinnerung wieder ab $(hm $(( (NOW + 15) % 1440 )))" "Stempeln" spaeter
+#DATEI frei.sh
+# Stempeln Frei: Bestaetigung (FREI kommt aus der Huelle)
+jetzt
+case "$FREI" in
+  "") rm -f $B/ruhe.txt; note "Keine freien Tage eingetragen - Erinnerungen sind an" "Stempeln" stempeln ;;
+  *[0-9].*[0-9].*[0-9]*) rm -f $B/ruhe.txt; note "Frei bis $FREI - bis dahin keine Erinnerungen (ab $FREI wieder)" "Stempeln" stempeln ;;
+  *) note "'$FREI' nicht verstanden - bitte als TT.MM.JJJJ eingeben (z. B. 03.11.2026)" "Stempeln" stempeln ;;
+esac
+#DATEI heutenicht.sh
+# Knopf [Heute nicht] in der Zuhause-Erinnerung: heute keine Zuhause-Erinnerung mehr (Buero-Erinnerungen bleiben)
+jetzt
+echo "$HEUTE" > $B/heute-nicht.txt
+rm -f $B/vorschlag.txt
+note "Heute keine Zuhause-Erinnerung mehr - im Buero erinnere ich dich wie immer" "Stempeln" heutenicht
+#DATEI VERSION
+4.5
+#ENDE 4.5

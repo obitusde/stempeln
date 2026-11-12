@@ -1,0 +1,42 @@
+# App bauen v1.0.0: Logik testen, APK bauen, bei neuer versionName ein Release "app-v<version>" mit der APK anlegen
+name: App bauen
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', 'logik/**', '*.gradle.kts', 'gradle.properties', '.github/workflows/app.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.14.3' }
+      - name: Signierschluessel aus den Secrets (falls eingerichtet)
+        env:
+          KS: ${{ secrets.STEMPELN_KEYSTORE }}
+        run: |
+          if [ -n "$KS" ]; then echo "$KS" | base64 -d > "$RUNNER_TEMP/stempeln.keystore"; echo "STEMPELN_KEYSTORE_DATEI=$RUNNER_TEMP/stempeln.keystore" >> "$GITHUB_ENV"
+          else echo "::warning::Secret STEMPELN_KEYSTORE fehlt - APK mit Debug-Schluessel (Update nur per Neuinstallation)"; fi
+      - name: Testen und bauen
+        env:
+          STEMPELN_PASSWORT: ${{ secrets.STEMPELN_PASSWORT }}
+        run: gradle --no-daemon --console=plain :logik:test :app:assembleRelease
+      - name: Version
+        id: v
+        run: echo "v=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
+      - name: APK benennen
+        run: cp app/build/outputs/apk/release/app-release.apk "Stempeln-${{ steps.v.outputs.v }}.apk"
+      - uses: actions/upload-artifact@v4
+        with: { name: Stempeln-apk, path: 'Stempeln-*.apk' }
+      - name: Release (nur bei neuer Version)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          T="app-v${{ steps.v.outputs.v }}"
+          if gh release view "$T" >/dev/null 2>&1; then echo "Release $T gibt es schon - nichts zu tun"
+          else gh release create "$T" Stempeln-*.apk --title "Stempeln App ${{ steps.v.outputs.v }}" --notes "Automatisch gebaut aus $GITHUB_SHA"; fi

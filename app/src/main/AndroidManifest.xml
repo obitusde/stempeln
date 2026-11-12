@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stempeln-App: laeuft nie im Hintergrund, wacht nur per Wecker, Ortszone, Knopf oder Meldung der Skripte auf -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application
+        android:label="Stempeln"
+        android:icon="@drawable/ic_stempel"
+        android:roundIcon="@drawable/ic_stempel"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:allowBackup="false">
+
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver android:name=".WeckerEmpfaenger" android:exported="false" />
+        <receiver android:name=".OrtEmpfaenger" android:exported="false" />
+        <receiver android:name=".KnopfEmpfaenger" android:exported="false" />
+        <!-- Die Shell-Skripte (ende.sh) melden einen neuen Stand: am broadcast -n io.github.obitusde.stempeln/.StandEmpfaenger -->
+        <receiver android:name=".StandEmpfaenger" android:exported="true">
+            <intent-filter><action android:name="io.github.obitusde.stempeln.STAND" /></intent-filter>
+        </receiver>
+        <receiver android:name=".StartEmpfaenger" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.dateien"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/dateipfade" />
+        </provider>
+
+        <!-- Shizuku: nur um zu pruefen, ob Shizuku laeuft (MacroDroid braucht es zum Tippen) -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+    </application>
+</manifest>
