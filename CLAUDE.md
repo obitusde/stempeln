@@ -26,7 +26,8 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
 1. (12.11.) Pause in Minuten anzeigen: geplant (30/45 min nach Ort), läuft gerade (seit … min), schon gemacht (… min).
-2. (12.11.) Zähler Arbeitstage (ohne Wochenende) bis zum geplanten Arbeitsende **1.6.2028**.
+2. (12.11.) Zähler Arbeitstage bis zum Arbeitsende: Mo–Fr, **VD-Feiertage abziehen**, eingetragenen Urlaub **nicht** abziehen, **letzter Arbeitstag 31.5.2028** (1.6. frei), **heute zählt mit**.
+3. (12.11.) Menü „Einstellungen“: z. B. Arbeitszeit pro Tag (heute 8 h 25, kann sich ändern), Arbeitsende-Datum, evtl. weitere. Speicherort noch offen (Vorschlag: `Download/stempeln/einstellungen.txt`, damit auch die Skripte sie lesen).
 
 Umgesetzt 12.11. (Christof: „Setze das alles jetzt um“):
 - Makros v4.3: erste Prüfung nach ~5 s, bis zu 8 Runden „Bildschirm lesen → `pruef.sh` (R=1..8) → Agenda da?“; **Wartezeiten stehen in `pruef.sh`** (falsche Seite/gesperrt → sofort neu öffnen + 5 s, ohne Adresse erst ab Runde 3, höchstens 3× neu; lädt noch → 2 s), nach dem Tipp wartet `haupt.sh` 3 s. Kein „Startbildschirm“ mehr: `ende.sh` ruft `zurueck` → **App Stempeln kommt nach jedem Lauf nach vorn**.
