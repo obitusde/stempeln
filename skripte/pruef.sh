@@ -14,7 +14,7 @@ if [ $NEU = 1 ]; then
   input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
   bis=$(( $(date +%s) + 8 )); n=0
   while [ "$(gesperrt)" != 0 ] && [ $(date +%s) -lt $bis ]; do
-    [ $n = 0 ] && note "Bitte entsperren - ich warte noch auf die Stempelseite" "Stempeln" stempeln
+    [ $n = 0 ] && note "Bitte entsperren - ich warte noch auf die Stempelseite" "Stempeln" stempeln hinweis
     n=$(( n + 1 )); sleep 1
   done
   Z=$(cat "$D/neu-zahl.txt" 2>/dev/null); Z=${Z:-0}

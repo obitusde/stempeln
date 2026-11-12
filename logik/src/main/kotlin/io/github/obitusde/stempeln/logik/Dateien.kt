@@ -37,16 +37,17 @@ fun hhmm(min: Int): String { val a = ((min % 1440) + 1440) % 1440; return (a / 6
 data class Zustand(
     val datum: LocalDate?, val status: String, val pres: Int, val lese: Long,
     val letzte: String, val buch: Int, val ort: String, val name: String,
+    val pause: Int = -1,   // Mittagspause heute schon gemacht (min), -1 = unbekannt (alte Skripte)
 ) {
     companion object {
-        val LEER = Zustand(null, "OUT", 0, 0, "", 0, "", "")
+        val LEER = Zustand(null, "OUT", 0, 0, "", 0, "", "", 0)
         fun aus(text: String?): Zustand {
             val m = leseKv(text)
             if (m.isEmpty()) return LEER
             return Zustand(
                 datumOderNull(m["Z_DATUM"]), m["Z_STATUS"] ?: "OUT", m["Z_PRES"]?.toIntOrNull() ?: 0,
                 m["Z_LESE"]?.toLongOrNull() ?: 0, m["Z_LETZTE"] ?: "", m["Z_BUCH"]?.toIntOrNull() ?: 0,
-                m["Z_ORT"] ?: "", m["Z_NAME"] ?: "",
+                m["Z_ORT"] ?: "", m["Z_NAME"] ?: "", m["Z_PAUSE"]?.toIntOrNull() ?: -1,
             )
         }
     }

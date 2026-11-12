@@ -1,9 +1,9 @@
-#STEMPELPAKET 4.6
+#STEMPELPAKET 4.7
 # Stempel-Skripte fuer MacroDroid (Makro "Stempeln Update" packt aus). Nicht von Hand aendern.
 #DATEI kopf.sh
 # Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=4.6
+SKV=4.7
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0
@@ -16,6 +16,9 @@ ORTBIS=660
 # Pause vorbei nach PAUSE_SS min (SUR SITE), sonst PAUSE_KURZ min (HOME OFFICE, HUB)
 PAUSE_SS=45
 PAUSE_KURZ=30
+# Einstellungen aus der App (Download/stempeln/einstellungen.txt): Arbeitszeit (mit "gueltig ab"), Pausen usw. - ueberschreiben die Werte oben
+E_SOLL=""; [ -f $B/einstellungen.txt ] && . $B/einstellungen.txt
+PAUSE_SS=${E_PAUSE_SS:-$PAUSE_SS}; PAUSE_KURZ=${E_PAUSE_KURZ:-$PAUSE_KURZ}
 # Orte: eigene Datei auf dem Handy (schreibt das private Makro "Stempeln Update"), nie im Repo
 ORTE=$(cat $B/orte.txt 2>/dev/null)
 # Welche Seite zeigt Chrome? $1 = Bildschirminhalt -> SEITE=clock|fremd, U=Adresse aus der Adressleiste
@@ -34,8 +37,10 @@ zurueck() { am start -a android.intent.action.MAIN -c android.intent.category.LA
 sperrbild() { grep -qE 'systemui:id/(keyguard|device_entry)' "$1" 2>/dev/null; }
 # Sperrbildschirm sichtbar? (0 = nein)
 gesperrt() { dumpsys window </dev/null 2>&1 | grep -cE 'isKeyguardShowing=true|mShowingLockscreen=true|mDreamingLockscreen=true'; }
-# Meldung mit Uhrzeit vorne: note TEXT TITEL TAG
-note() { cmd notification post -S bigtext -t "$2" "$3" "$(date +%H:%M) · $1" </dev/null >/dev/null 2>&1; }
+# Meldung: note TEXT TITEL TAG [ART] - zeigt die App (ART fortschritt = still, hinweis, ok = Ton "geklappt", problem = Ton "Problem");
+# antwortet die App nicht (result=7 fehlt), kommt die Meldung wie frueher von der Shell
+note() { r=$(am broadcast -n io.github.obitusde.stempeln/.StandEmpfaenger -a io.github.obitusde.stempeln.MELDUNG --es art "${4:-fortschritt}" --es text "$1" </dev/null 2>&1)
+  case "$r" in *result=7*) ;; *) cmd notification post -S bigtext -t "$2" "$3" "$(date +%H:%M) · $1" </dev/null >/dev/null 2>&1 ;; esac; }
 # Vorschlag an den Waechter: Text steht im Titel (MacroDroid zeigt not_title), Kennung im Text:
 # "Stempel-Vorschlag" = Knoepfe [Stempeln] [Schon gestempelt] [Spaeter], "Stempel-Heimfrage" = zu Hause, [Heute nicht] statt [Spaeter]
 signal() { cmd notification post -S bigtext -t "$(date +%H:%M) · $1" vorschlag "${2:-Stempel-Vorschlag}" </dev/null >/dev/null 2>&1; }
@@ -113,6 +118,12 @@ stand() { STATUS="?"; HOT=""; PRES=""; AGENDA=0; K_SOLDE=""; K_JOUR=""; K_RATT="
 lauf() { D=$(cat $B/aktuell.txt 2>/dev/null); [ -d "$D" ] || { D=$B/lauf; mkdir -p "$D"; }
   L=$D/log.txt; exec 2>>"$L"; }
 t() { [ $DEBUG = 1 ] && echo "$(date +%T) $*" >> "$L"; }
+# Arbeitszeit fuer Tag $1 (JJJJ-MM-TT) aus E_SOLL ("2000-01-01=08:25,2027-01-01=08:00"), sonst SOLL
+soll_am() { s=$SOLL; set -f; alt=$IFS; IFS=','; for e in $E_SOLL; do [[ "${e%%=*}" > "$1" ]] || s=$(minuten "${e#*=}"); done; IFS=$alt; set +f; echo $s; }
+# Pause fuer Knopf $1 (SS = SUR SITE, sonst HO/HUB)
+pause_fuer() { if [ "$1" = SS ]; then echo $PAUSE_SS; else echo $PAUSE_KURZ; fi; }
+jetzt
+SOLL=$(soll_am $HEUTE)
 #DATEI start.sh
 # Start von Stempeln / Stand: Lauf-Ordner, Sperre, aufs Entsperren warten, Leiste schliessen
 jetzt
@@ -124,7 +135,7 @@ t "$TEXT (Skripte v$SKV) - Start"
 [ "$(gesperrt)" != 0 ] && input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
 n=0
 while [ "$(gesperrt)" != 0 ] && [ $n -lt 60 ]; do
-  [ $n = 0 ] && note "Bitte entsperren - dann geht es weiter" "Stempeln" stempeln
+  [ $n = 0 ] && note "Bitte entsperren - dann geht es weiter" "Stempeln" stempeln hinweis
   sleep 1; n=$(( n + 1 ))
 done
 cmd statusbar collapse </dev/null >/dev/null 2>&1
@@ -137,7 +148,7 @@ lauf
 input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
 bis=$(( $(date +%s) + 8 )); n=0
 while [ "$(gesperrt)" != 0 ] && [ $(date +%s) -lt $bis ]; do
-  [ $n = 0 ] && note "Bitte entsperren - ich pruefe noch die Stempelseite" "Stempeln" stempeln
+  [ $n = 0 ] && note "Bitte entsperren - ich pruefe noch die Stempelseite" "Stempeln" stempeln hinweis
   n=$(( n + 1 )); sleep 1
 done
 t "neu: Bildschirm geweckt, $n s aufs Entsperren gewartet"
@@ -160,7 +171,7 @@ if [ $NEU = 1 ]; then
   input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
   bis=$(( $(date +%s) + 8 )); n=0
   while [ "$(gesperrt)" != 0 ] && [ $(date +%s) -lt $bis ]; do
-    [ $n = 0 ] && note "Bitte entsperren - ich warte noch auf die Stempelseite" "Stempeln" stempeln
+    [ $n = 0 ] && note "Bitte entsperren - ich warte noch auf die Stempelseite" "Stempeln" stempeln hinweis
     n=$(( n + 1 )); sleep 1
   done
   Z=$(cat "$D/neu-zahl.txt" 2>/dev/null); Z=${Z:-0}
@@ -223,7 +234,7 @@ elif [ -z "$KTYP" ]; then
   else
     AKTION=manuell
     ERGT="Unbekannter Ort"
-    note "Unbekannter Ort - tippe selbst auf der Seite den passenden Knopf. Ich lese in 60 s nach." "Stempeln" stempeln
+    note "Unbekannter Ort - tippe selbst auf der Seite den passenden Knopf. Ich lese in 60 s nach." "Stempeln" stempeln hinweis
     sleep 60
   fi
 else
@@ -293,41 +304,44 @@ if [ -n "$PRES" ] && [ "$STATUS" != "?" ]; then
     *) if [ -z "$Z_ORT" ] && [ "$STATUS" = IN ]; then wahl EIN; Z_ORT=$KTYP; Z_NAME=$KNAME; fi ;;
   esac
   { echo "Z_DATUM=$HEUTE"; echo "Z_STATUS=$STATUS"; echo "Z_PRES=$PRES"; echo "Z_LESE=$EPOCH"; echo "Z_LETZTE=$LETZTE"; echo "Z_BUCH=$BUCH"
-    echo "Z_ORT=$Z_ORT"; echo "Z_NAME='$Z_NAME'"; } > $B/zustand.txt
+    echo "Z_ORT=$Z_ORT"; echo "Z_NAME='$Z_NAME'"; echo "Z_PAUSE=$PAUSE"; } > $B/zustand.txt
   ZL=""; [ -n "$Z_ORT" ] && ZL=" - $(label "$Z_ORT")"
   REST=$(( SOLL - PRES ))
   if [ "$STATUS" = IN ]; then
-    PZU=0; [ $PAUSE = 0 ] && [ $NOW -lt 870 ] && PZU=45
+    PZU=0; [ $PAUSE = 0 ] && [ $NOW -lt 870 ] && PZU=$(pause_fuer "$Z_ORT")
     if [ $REST -gt 0 ]; then INFO="heute $(hm $PRES) - noch $(hm $REST) -> fertig um $(hm $(( (NOW + REST + PZU) % 1440 )))"
-      [ $PZU -gt 0 ] && INFO="$INFO (mit 45 min Pause)"
-    else INFO="heute $(hm $PRES) - 8 h 25 schon voll"; fi
+      [ $PZU -gt 0 ] && INFO="$INFO (mit $PZU min Pause)"
+    else INFO="heute $(hm $PRES) - Soll $(hm $SOLL) schon voll"; fi
     KOPF="Eingestempelt${LETZTE:+ $LETZTE}$ZL"
   else
     if [ $REST -gt 0 ]; then INFO="heute $(hm $PRES) - noch $(hm $REST) offen"
       L2=$(minuten "${LETZTE:-0:00}")
+      PZ=$(pause_fuer "$Z_ORT")
       [ $L2 -ge 660 ] && [ $L2 -le 870 ] && INFO="$INFO
-Pause 30 min bis $(hm $(( L2 + 30 ))), 45 min bis $(hm $(( L2 + 45 )))"
+Pause $PZ min bis $(hm $(( L2 + PZ )))"
     else INFO="heute $(hm $PRES) - Feierabend"; fi
     KOPF="Ausgestempelt${LETZTE:+ $LETZTE}"
     [ "$A_AKTION" = tipp ] && KOPF="$KOPF - $(label "$A_TYP")"
   fi
+  ART=problem
   if [ -n "$VERM" ]; then MELD="$A_TEXT getippt - $VERM, Buchung nicht nachgeprueft. Gemerkt:
 $KOPF
 $INFO"
   elif [ "$A_AKTION" = tipp ] && [ "$STATUS" = "$A_STATUS" ]; then
     MELD="ACHTUNG: $A_TEXT getippt, aber der Stand hat sich nicht geaendert ($KOPF). Bitte pruefen!"
-  elif [ "$A_AKTION" = manuell ] && [ "$STATUS" != "$A_STATUS" ]; then MELD="$KOPF (von Hand)
+  elif [ "$A_AKTION" = manuell ] && [ "$STATUS" != "$A_STATUS" ]; then ART=ok; MELD="$KOPF (von Hand)
 $INFO"
   elif [ -n "$A_KORR" ]; then MELD="$A_TEXT - Stand gemerkt:
 $KOPF
 $INFO"
   elif [ -n "$A_TEXT" ] && [ "$A_AKTION" != tipp ]; then MELD="$A_TEXT
 $KOPF - $INFO"
-  else MELD="$KOPF
+  else ART=ok; MELD="$KOPF
 $INFO"; fi
   # gemerkte Erinnerung passt nicht mehr zum Stand -> Waechter fragt neu
   rm -f $B/vorschlag.txt
 else
+  ART=problem
   if sperrbild "$D/seite-nach.txt"; then MELD="Handy war gesperrt - Stand nicht gelesen, bitte selbst pruefen"
   elif [ "$SEITE" != clock ]; then MELD="Stempelseite nicht erreicht (Chrome zeigte ${U:-eine andere Seite}) - Stand nicht gelesen, bitte selbst pruefen"
   elif [ "$HALB" = 1 ]; then MELD="Stempelseite nicht fertig geladen - Stand nicht gelesen, bitte selbst pruefen"
@@ -336,7 +350,7 @@ else
   [ "$A_AKTION" = keine ] && [ -n "$A_TEXT" ] && MELD=$A_TEXT
 fi
 t "Meldung: $MELD"
-note "$MELD" "Stempeln" stempeln
+note "$MELD" "Stempeln" stempeln $ART
 rm -f $B/lock.txt
 app_melden
 zurueck
@@ -453,5 +467,5 @@ echo "$HEUTE" > $B/heute-nicht.txt
 rm -f $B/vorschlag.txt
 note "Heute keine Zuhause-Erinnerung mehr - im Buero erinnere ich dich wie immer" "Stempeln" heutenicht
 #DATEI VERSION
-4.6
-#ENDE 4.6
+4.7
+#ENDE 4.7

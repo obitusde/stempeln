@@ -15,7 +15,7 @@ elif [ -z "$KTYP" ]; then
   else
     AKTION=manuell
     ERGT="Unbekannter Ort"
-    note "Unbekannter Ort - tippe selbst auf der Seite den passenden Knopf. Ich lese in 60 s nach." "Stempeln" stempeln
+    note "Unbekannter Ort - tippe selbst auf der Seite den passenden Knopf. Ich lese in 60 s nach." "Stempeln" stempeln hinweis
     sleep 60
   fi
 else

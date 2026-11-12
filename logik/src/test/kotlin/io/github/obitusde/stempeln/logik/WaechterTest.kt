@@ -71,7 +71,7 @@ class WaechterTest {
         val c = Waechter.entscheide(lage("2026-11-11", "13:00", z2))
         assertNull(c.erinnerung); assertEquals(t("2026-11-11", "17:25"), c.wecker)
         val d = Waechter.entscheide(lage("2026-11-11", "17:30", z2))
-        assertEquals("8 h 25 voll seit 17:25 (+5 min) - ausstempeln? → HOME OFFICE", d.erinnerung!!.anzeige)
+        assertEquals("Soll (8:25) voll seit 17:25 (+5 min) - ausstempeln? → HOME OFFICE", d.erinnerung!!.anzeige)
     }
 
     @Test fun pause_30_45_und_nachfrage() {

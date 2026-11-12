@@ -1,6 +1,6 @@
 # Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=4.6
+SKV=4.7
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0
@@ -13,6 +13,9 @@ ORTBIS=660
 # Pause vorbei nach PAUSE_SS min (SUR SITE), sonst PAUSE_KURZ min (HOME OFFICE, HUB)
 PAUSE_SS=45
 PAUSE_KURZ=30
+# Einstellungen aus der App (Download/stempeln/einstellungen.txt): Arbeitszeit (mit "gueltig ab"), Pausen usw. - ueberschreiben die Werte oben
+E_SOLL=""; [ -f $B/einstellungen.txt ] && . $B/einstellungen.txt
+PAUSE_SS=${E_PAUSE_SS:-$PAUSE_SS}; PAUSE_KURZ=${E_PAUSE_KURZ:-$PAUSE_KURZ}
 # Orte: eigene Datei auf dem Handy (schreibt das private Makro "Stempeln Update"), nie im Repo
 ORTE=$(cat $B/orte.txt 2>/dev/null)
 # Welche Seite zeigt Chrome? $1 = Bildschirminhalt -> SEITE=clock|fremd, U=Adresse aus der Adressleiste
@@ -31,8 +34,10 @@ zurueck() { am start -a android.intent.action.MAIN -c android.intent.category.LA
 sperrbild() { grep -qE 'systemui:id/(keyguard|device_entry)' "$1" 2>/dev/null; }
 # Sperrbildschirm sichtbar? (0 = nein)
 gesperrt() { dumpsys window </dev/null 2>&1 | grep -cE 'isKeyguardShowing=true|mShowingLockscreen=true|mDreamingLockscreen=true'; }
-# Meldung mit Uhrzeit vorne: note TEXT TITEL TAG
-note() { cmd notification post -S bigtext -t "$2" "$3" "$(date +%H:%M) · $1" </dev/null >/dev/null 2>&1; }
+# Meldung: note TEXT TITEL TAG [ART] - zeigt die App (ART fortschritt = still, hinweis, ok = Ton "geklappt", problem = Ton "Problem");
+# antwortet die App nicht (result=7 fehlt), kommt die Meldung wie frueher von der Shell
+note() { r=$(am broadcast -n io.github.obitusde.stempeln/.StandEmpfaenger -a io.github.obitusde.stempeln.MELDUNG --es art "${4:-fortschritt}" --es text "$1" </dev/null 2>&1)
+  case "$r" in *result=7*) ;; *) cmd notification post -S bigtext -t "$2" "$3" "$(date +%H:%M) · $1" </dev/null >/dev/null 2>&1 ;; esac; }
 # Vorschlag an den Waechter: Text steht im Titel (MacroDroid zeigt not_title), Kennung im Text:
 # "Stempel-Vorschlag" = Knoepfe [Stempeln] [Schon gestempelt] [Spaeter], "Stempel-Heimfrage" = zu Hause, [Heute nicht] statt [Spaeter]
 signal() { cmd notification post -S bigtext -t "$(date +%H:%M) · $1" vorschlag "${2:-Stempel-Vorschlag}" </dev/null >/dev/null 2>&1; }
@@ -110,3 +115,9 @@ stand() { STATUS="?"; HOT=""; PRES=""; AGENDA=0; K_SOLDE=""; K_JOUR=""; K_RATT="
 lauf() { D=$(cat $B/aktuell.txt 2>/dev/null); [ -d "$D" ] || { D=$B/lauf; mkdir -p "$D"; }
   L=$D/log.txt; exec 2>>"$L"; }
 t() { [ $DEBUG = 1 ] && echo "$(date +%T) $*" >> "$L"; }
+# Arbeitszeit fuer Tag $1 (JJJJ-MM-TT) aus E_SOLL ("2000-01-01=08:25,2027-01-01=08:00"), sonst SOLL
+soll_am() { s=$SOLL; set -f; alt=$IFS; IFS=','; for e in $E_SOLL; do [[ "${e%%=*}" > "$1" ]] || s=$(minuten "${e#*=}"); done; IFS=$alt; set +f; echo $s; }
+# Pause fuer Knopf $1 (SS = SUR SITE, sonst HO/HUB)
+pause_fuer() { if [ "$1" = SS ]; then echo $PAUSE_SS; else echo $PAUSE_KURZ; fi; }
+jetzt
+SOLL=$(soll_am $HEUTE)

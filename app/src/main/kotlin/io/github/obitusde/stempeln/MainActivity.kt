@@ -1,5 +1,5 @@
-// Stempeln-App: Oberflaeche v0.2.0 - Status mit Balken, Arbeitszeit (Soll / bereits / fehlt / Schluss), Ueberstunden,
-// Planen (mit Zurueck), Urlaub (erster + letzter Urlaubstag). Rechnet nur, solange sie offen ist.
+// Stempeln-App: Oberflaeche v0.3.0 - Status mit Balken, Arbeitszeit (Soll / bereits / fehlt / Schluss), Pause, Ueberstunden,
+// Arbeitstage bis zum Arbeitsende, grosser Knopf zeigt Ein/Aus + Ort, Planen, Urlaub, Einstellungen. Rechnet nur, solange sie offen ist.
 package io.github.obitusde.stempeln
 
 import android.Manifest
@@ -37,6 +37,8 @@ class MainActivity : Activity() {
     private lateinit var warnungen: LinearLayout
     private lateinit var statusKarte: LinearLayout
     private lateinit var kontoKarte: LinearLayout
+    private lateinit var zaehlerKarte: LinearLayout
+    private lateinit var stempelTaste: Button
     private lateinit var meldung: TextView
     private lateinit var infos: TextView
     private val h = Handler(Looper.getMainLooper())
@@ -83,22 +85,25 @@ class MainActivity : Activity() {
 
     private val wt = arrayOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
     private fun datum(d: LocalDate) = "${wt[d.dayOfWeek.value - 1]} ${d.dayOfMonth}.${d.monthValue}."
-    private fun wiederLos(u: Urlaub) = Waechter.naechsterStart(u.bis.plusDays(1), null).toLocalDate()
+    private fun datumJahr(d: LocalDate) = datum(d) + d.year
+    private fun wiederLos(u: Urlaub) = Waechter.naechsterStart(u.bis.plusDays(1), null, Speicher.einstellungen()).toLocalDate()
 
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         Steuerung.kanaele(this)
         warnungen = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        statusKarte = karte(); kontoKarte = karte()
+        statusKarte = karte(); kontoKarte = karte(); zaehlerKarte = karte()
+        stempelTaste = taste("Stempeln", true) { befehl("stempeln") }
         meldung = text(15f, farbe = blau).apply { visibility = View.GONE; setPadding(dp(4), dp(6), dp(4), dp(6)) }
         infos = text(13f, farbe = grau)
         val inhalt = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(20), dp(16), dp(28))
             addView(text(26f, true, blau, "Stempeln"))
             addView(warnungen); addView(statusKarte)
-            addView(paar(taste("Stempeln", true) { befehl("stempeln") }, taste("Stand lesen") { befehl("stand") }))
-            addView(paar(taste("Planen") { planen() }, taste("Urlaub") { urlaub() }))
-            addView(meldung); addView(kontoKarte)
+            addView(stempelTaste, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(4), 0, dp(4)) })
+            addView(paar(taste("Stand lesen") { befehl("stand") }, taste("Planen") { planen() }))
+            addView(paar(taste("Urlaub") { urlaub() }, taste("Einstellungen") { einstellungen() }))
+            addView(meldung); addView(kontoKarte); addView(zaehlerKarte)
             addView(karte().apply { addView(infos) })
             addView(paar(taste("Skripte aktualisieren") { skripte() }, taste("App aktualisieren") { app() }))
         }
@@ -132,10 +137,12 @@ class MainActivity : Activity() {
 
     private fun zeigen() {
         pruefeRechte()
-        statusKarte.removeAllViews(); kontoKarte.removeAllViews()
+        statusKarte.removeAllViews(); kontoKarte.removeAllViews(); zaehlerKarte.removeAllViews()
         if (!Speicher.zugriff()) { statusKarte.addView(text(18f, true, t = "Zugriff auf Dateien fehlt (oben erlauben)")); infos.text = ""; return }
         val l = Steuerung.lage(this)
+        val se = l.e
         val z = Waechter.heute(l)
+        stempelTaste.text = Anzeige.naechstes(l, Steuerung.aktuelleZonenName(this)).text
         val heute = l.jetzt.toLocalDate()
         val u = Speicher.urlaub(this)
         val k = statusKarte
@@ -148,7 +155,7 @@ class MainActivity : Activity() {
         } else if (z.buch == 0 && !Waechter.istArbeitstag(heute, u)) {
             chip(k, "Frei", grau)
             k.addView(text(22f, true, t = "Heute kein Arbeitstag"))
-            k.addView(text(15f, farbe = grau, t = "Nächster Arbeitstag: ${datum(Waechter.naechsterStart(heute, u).toLocalDate())}"))
+            k.addView(text(15f, farbe = grau, t = "Nächster Arbeitstag: ${datum(Waechter.naechsterStart(heute, u, se).toLocalDate())}"))
         } else {
             when {
                 z.buch == 0 -> { chip(k, "Noch nicht eingestempelt", grau); Steuerung.aktuelleZone(this)?.let { k.addView(text(15f, farbe = grau, t = "Ort: " + knopf(it))) } }
@@ -168,6 +175,7 @@ class MainActivity : Activity() {
             zeile(k, "Fehlt noch", if (voll) "nichts" else Anzeige.lang(g.fehlt), if (voll) gruen else dunkel, true)
             zeile(k, "Voraussichtlich Schluss", g.schluss?.let { hhmm(it) } ?: "jetzt", if (voll) gruen else blau, true)
             k.addView(text(13f, farbe = grau, t = g.hinweis))
+            Anzeige.pause(l)?.let { k.addView(text(15f, farbe = dunkel, t = it).apply { setPadding(0, dp(8), 0, 0) }) }
             if (u != null) k.addView(text(14f, farbe = lila, t = "Urlaub eingetragen: ${datum(u.von)} bis ${datum(u.bis)} (letzter Urlaubstag)"))
         }
         Speicher.plan(this)?.let { p -> k.addView(text(15f, true, blau, "Geplantes Stempeln um %02d:%02d".format(p.hour, p.minute))) }
@@ -181,11 +189,20 @@ class MainActivity : Activity() {
                 addView(text(17f, true, t = "Überstunden"), LinearLayout.LayoutParams(0, -2, 1f))
                 addView(text(22f, true, if (s >= 0) gruen else orange, Anzeige.lang(s)))
             })
-            kk.addView(text(15f, farbe = grau, t = "= ${Anzeige.tage(s)} Arbeitstage zu 8 h 25 (Stand bis gestern)"))
+            val soll = se.sollAm(heute)
+            kk.addView(text(15f, farbe = grau, t = "= ${Anzeige.tage(s, soll)} Arbeitstage zu ${Anzeige.lang(soll)} (Stand bis gestern)"))
             val wann = LocalDateTime.ofInstant(Instant.ofEpochSecond(kt.lese), ZoneId.of("Europe/Zurich"))
             kk.addView(text(13f, farbe = grau, t = "Stempelseite gelesen: " + (if (wann.toLocalDate() == heute) "heute " else datum(wann.toLocalDate()) + " ") +
                 "%02d:%02d".format(wann.hour, wann.minute)))
         } else kk.addView(text(15f, farbe = grau, t = "Überstunden: noch nicht gelesen – „Stand lesen“ tippen"))
+
+        // Arbeitstage bis zum letzten Arbeitstag (heute zaehlt mit, ohne Wochenenden und Waadtlaender Feiertage)
+        val n = Anzeige.arbeitstage(heute, se.ende)
+        zaehlerKarte.addView(LinearLayout(this).apply {
+            addView(text(17f, true, t = "Noch Arbeitstage"), LinearLayout.LayoutParams(0, -2, 1f))
+            addView(text(22f, true, blau, "$n"))
+        })
+        zaehlerKarte.addView(text(14f, farbe = grau, t = "bis zum letzten Arbeitstag ${datumJahr(se.ende)} – heute mitgezählt, ohne Wochenenden und Feiertage"))
 
         infos.text = listOfNotNull(
             Speicher.naechster(this).ifEmpty { null },
@@ -267,6 +284,96 @@ class MainActivity : Activity() {
                 Speicher.setzeUrlaub(this, null); melde("Urlaub gelöscht")
                 Thread { Steuerung.aktualisieren(applicationContext, "urlaub") }.start(); zeigen() }
             .setNegativeButton("Zurück", null).show()
+    }
+
+    // ---------- Einstellungen (Datei Download/stempeln/einstellungen.txt, auch die Skripte lesen sie) ----------
+    private fun speichern(e: Einstellungen, was: String) {
+        if (!Speicher.setzeEinstellungen(e)) { melde("Konnte Einstellungen nicht speichern (Zugriff auf Dateien?)"); return }
+        melde("Gespeichert: $was")
+        Thread { Steuerung.aktualisieren(applicationContext, "einstellungen") }.start()
+        zeigen(); einstellungen()
+    }
+
+    private fun einstellungen() {
+        val e = Speicher.einstellungen()
+        val heute = LocalDate.now(Regeln.ZONE)
+        val tage = e.hoTage.sortedBy { it.value }.joinToString(", ") { wt[it.value - 1] }.ifEmpty { "keine" }
+        val punkte = listOf<Pair<String, () -> Unit>>(
+            "Arbeitszeit pro Tag: ${Anzeige.lang(e.sollAm(heute))}" + (if (e.soll.size > 1) " (${e.soll.size} Einträge)" else "") to { arbeitszeit(e) },
+            "Letzter Arbeitstag: ${datumJahr(e.ende)}" to {
+                tagWaehlen("Letzter Arbeitstag", "Dein letzter Arbeitstag (er zählt noch mit).", e.ende, heute, "Speichern") { d ->
+                    speichern(e.copy(ende = d), "letzter Arbeitstag ${datumJahr(d)}") } },
+            "Pause zu Hause / HUB: ${e.pauseKurz} min" to { minuten("Pause zu Hause / HUB", e.pauseKurz) { speichern(e.copy(pauseKurz = it), "Pause zu Hause / HUB $it min") } },
+            "Pause SUR SITE: ${e.pauseSS} min" to { minuten("Pause SUR SITE", e.pauseSS) { speichern(e.copy(pauseSS = it), "Pause SUR SITE $it min") } },
+            "Home-Office-Tage: $tage" to { hoTage(e) },
+            "Erinnerung ab (Home-Office-Tage): ${hhmm(e.startHO)}" to { uhr(e.startHO) { speichern(e.copy(startHO = it), "Erinnerung Home-Office-Tage ab ${hhmm(it)}") } },
+            "Erinnerung ab (Bürotage): ${hhmm(e.startBuero)}" to { uhr(e.startBuero) { speichern(e.copy(startBuero = it), "Erinnerung Bürotage ab ${hhmm(it)}") } },
+            "Mittagspause-Erinnerung: ${hhmm(e.mittag)}" to { uhr(e.mittag) { speichern(e.copy(mittag = it), "Mittagspause-Erinnerung ${hhmm(it)}") } },
+            "Erinnerung wiederholen alle: ${e.wdh} min" to { minuten("Erinnerung wiederholen alle", e.wdh) { speichern(e.copy(wdh = it), "Wiederholung alle $it min") } },
+            "Keine Erinnerungen nach: ${hhmm(e.abend)}" to { uhr(e.abend) { speichern(e.copy(abend = it), "keine Erinnerungen nach ${hhmm(it)}") } },
+        )
+        AlertDialog.Builder(this).setTitle("Einstellungen")
+            .setItems(punkte.map { it.first }.toTypedArray()) { _, i -> punkte[i].second() }
+            .setNegativeButton("Zurück", null).show()
+    }
+
+    private fun uhr(alt: Int, fertig: (Int) -> Unit) =
+        TimePickerDialog(this, { _, hh, mm -> fertig(hh * 60 + mm) }, alt / 60, alt % 60, true).show()
+
+    /** Zahl in Minuten eingeben (1-240). */
+    private fun minuten(titel: String, alt: Int, fertig: (Int) -> Unit) {
+        val f = EditText(this).apply { inputType = android.text.InputType.TYPE_CLASS_NUMBER; setText(alt.toString()); setSelection(text.length) }
+        AlertDialog.Builder(this).setTitle(titel).setMessage("Minuten:").setView(f)
+            .setPositiveButton("Speichern") { _, _ ->
+                val n = f.text.toString().trim().toIntOrNull()
+                if (n == null || n !in 1..240) melde("Bitte eine Zahl von 1 bis 240 eingeben") else fertig(n) }
+            .setNegativeButton("Zurück") { _, _ -> einstellungen() }.show()
+    }
+
+    private fun hoTage(e: Einstellungen) {
+        val namen = arrayOf("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag")
+        val an = BooleanArray(5) { java.time.DayOfWeek.of(it + 1) in e.hoTage }
+        AlertDialog.Builder(this).setTitle("Home-Office-Tage").setMultiChoiceItems(namen, an) { _, i, x -> an[i] = x }
+            .setPositiveButton("Speichern") { _, _ ->
+                val t = (0..4).filter { an[it] }.map { java.time.DayOfWeek.of(it + 1) }.toSet()
+                speichern(e.copy(hoTage = t), "Home-Office-Tage " + t.sortedBy { it.value }.joinToString(", ") { wt[it.value - 1] }.ifEmpty { "keine" }) }
+            .setNegativeButton("Zurück") { _, _ -> einstellungen() }.show()
+    }
+
+    /** Arbeitszeit pro Tag mit "gueltig ab": Liste, neuen Wert ab Datum, Eintrag loeschen. */
+    private fun arbeitszeit(e: Einstellungen) {
+        val heute = LocalDate.now(Regeln.ZONE)
+        val eintraege = e.soll.sortedBy { it.first }
+        val zeilen = eintraege.mapIndexed { i, (ab, m) ->
+            (if (i == 0) "von Anfang an" else "ab ${datumJahr(ab)}") + ": ${Anzeige.lang(m)}" + (if (m == e.sollAm(heute) && !ab.isAfter(heute) && eintraege.getOrNull(i + 1)?.first?.isAfter(heute) != false) "  (gilt jetzt)" else "")
+        } + "Neue Arbeitszeit ab Datum …"
+        AlertDialog.Builder(this).setTitle("Arbeitszeit pro Tag")
+            .setItems(zeilen.toTypedArray()) { _, i ->
+                if (i == eintraege.size) {
+                    tagWaehlen("Neue Arbeitszeit gültig ab", "Ab welchem Tag gilt die neue Arbeitszeit?", heute, heute.minusYears(1), "Weiter") { ab ->
+                        dauer(e.sollAm(ab)) { m -> speichern(e.copy(soll = (eintraege.filter { it.first != ab } + (ab to m)).sortedBy { it.first }),
+                            "Arbeitszeit ${Anzeige.lang(m)} ab ${datumJahr(ab)}") } }
+                } else if (i == 0) {
+                    dauer(eintraege[0].second) { m -> speichern(e.copy(soll = listOf(eintraege[0].first to m) + eintraege.drop(1)), "Arbeitszeit ${Anzeige.lang(m)}") }
+                } else {
+                    val (ab, m) = eintraege[i]
+                    AlertDialog.Builder(this).setTitle("Ab ${datumJahr(ab)}: ${Anzeige.lang(m)}")
+                        .setPositiveButton("Ändern") { _, _ -> dauer(m) { n -> speichern(e.copy(soll = eintraege.map { if (it.first == ab) ab to n else it }), "Arbeitszeit ${Anzeige.lang(n)} ab ${datumJahr(ab)}") } }
+                        .setNeutralButton("Löschen") { _, _ -> speichern(e.copy(soll = eintraege.filter { it.first != ab }), "Eintrag ab ${datumJahr(ab)} gelöscht") }
+                        .setNegativeButton("Zurück") { _, _ -> arbeitszeit(e) }.show()
+                }
+            }
+            .setNegativeButton("Zurück") { _, _ -> einstellungen() }.show()
+    }
+
+    /** Arbeitszeit eingeben als Stunden:Minuten, z. B. 8:25 */
+    private fun dauer(alt: Int, fertig: (Int) -> Unit) {
+        val f = EditText(this).apply { setText(hm(alt)); setSelection(text.length) }
+        AlertDialog.Builder(this).setTitle("Arbeitszeit pro Tag").setMessage("Stunden:Minuten, z. B. 8:25 (ohne Pause)").setView(f)
+            .setPositiveButton("Speichern") { _, _ ->
+                val m = minutenOderNull(f.text.toString())
+                if (m == null || m !in 60..720) melde("Bitte als Stunden:Minuten eingeben, z. B. 8:25") else fertig(m) }
+            .setNegativeButton("Zurück") { _, _ -> einstellungen() }.show()
     }
 
     // ---------- Aktualisieren ----------

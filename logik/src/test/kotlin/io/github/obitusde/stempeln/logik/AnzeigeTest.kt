@@ -54,5 +54,44 @@ class AnzeigeTest {
         assertEquals(450 + 505 + 30, g.schluss)
     }
 
+    @Test fun arbeitstage_bis_ende() {
+        assertEquals(395, Anzeige.arbeitstage(LocalDate.parse("2026-11-12"), LocalDate.parse("2028-05-31")))
+        assertEquals(1, Anzeige.arbeitstage(LocalDate.parse("2028-05-31"), LocalDate.parse("2028-05-31")))
+        assertEquals(0, Anzeige.arbeitstage(LocalDate.parse("2028-06-01"), LocalDate.parse("2028-05-31")))
+    }
+
+    @Test fun pause_anzeige() {
+        val aus = Zustand(LocalDate.parse("2026-11-12"), "OUT", 227, 1, "11:35", 2, "HUB", "", 0)
+        assertEquals("Pause läuft seit 4 min · geplant 30 min, vorbei um 12:05", Anzeige.pause(lage("2026-11-12", "11:39", aus)))
+        val drin = Zustand(LocalDate.parse("2026-11-12"), "IN", 300, ep(t("2026-11-12", "14:00")), "12:10", 3, "HUB", "", 35)
+        assertEquals("Pause gemacht: 35 min", Anzeige.pause(lage("2026-11-12", "14:00", drin)))
+        val morgen = Zustand(LocalDate.parse("2026-11-12"), "IN", 60, ep(t("2026-11-12", "09:00")), "08:00", 1, "SS", "Le Brassus", 0)
+        assertEquals("Pause geplant: 45 min (Erinnerung um 11:45)", Anzeige.pause(lage("2026-11-12", "09:00", morgen)))
+    }
+
+    @Test fun naechstes_stempeln() {
+        val drin = Zustand(LocalDate.parse("2026-11-12"), "IN", 60, ep(t("2026-11-12", "09:00")), "08:00", 1, "HUB", "", 0)
+        assertEquals("Ausstempeln · HUB", Anzeige.naechstes(lage("2026-11-12", "09:00", drin)).text)
+        val pause = Zustand(LocalDate.parse("2026-11-12"), "OUT", 227, 1, "11:35", 2, "SS", "Le Brassus", 0)
+        assertEquals("Einstempeln · SUR SITE (Le Brassus)", Anzeige.naechstes(lage("2026-11-12", "12:00", pause)).text)
+        assertEquals("Einstempeln · Ort per Standort", Anzeige.naechstes(lage("2026-11-13", "07:30")).text)
+        assertEquals("Einstempeln · HOME OFFICE", Anzeige.naechstes(lage("2026-11-13", "07:30", zone = "HO")).text)
+    }
+
+    @Test fun einstellungen_datei() {
+        val e = Einstellungen(soll = listOf(LocalDate.parse("2000-01-01") to 505, LocalDate.parse("2027-01-01") to 480))
+        val f = Einstellungen.aus(e.text())
+        assertEquals(e, f)
+        assertEquals(505, f.sollAm(LocalDate.parse("2026-12-31")))
+        assertEquals(480, f.sollAm(LocalDate.parse("2027-01-01")))
+        assertTrue(e.text().contains("E_SOLL='2000-01-01=08:25,2027-01-01=08:00'"))
+        assertEquals(Einstellungen(), Einstellungen.aus(null))
+        // andere Arbeitszeit wirkt im Waechter: 8 h voll
+        val z = Zustand(LocalDate.parse("2027-01-04"), "IN", 480, ep(t("2027-01-04", "17:00")), "12:30", 3, "HO", "", 30)
+        val j = t("2027-01-04", "17:00")
+        val w = Waechter.entscheide(Lage(j, ep(j), z, e = f))
+        assertEquals("Soll voll", w.erinnerung!!.grund)
+    }
+
     private fun hhmmZuMin(s: String) = minutenOderNull(s)!!
 }

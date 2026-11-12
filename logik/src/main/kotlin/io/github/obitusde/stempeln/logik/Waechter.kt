@@ -1,4 +1,4 @@
-// Stempeln-Logik: der Waechter. Entscheidet bei jedem Aufwachen (Wecker, Ortszone, Knopf, neuer Stand),
+// Stempeln-Logik v0.3.0: der Waechter (Werte aus den Einstellungen). Entscheidet bei jedem Aufwachen (Wecker, Ortszone, Knopf, neuer Stand),
 // ob eine Erinnerung faellig ist und wann er das naechste Mal aufwachen muss. Kein Dauerlauf, kein Standort-Abfragen:
 // der Standort kommt nur ueber Android-Ortszonen und nur morgens bis zum ersten Einstempeln.
 package io.github.obitusde.stempeln.logik
@@ -56,9 +56,10 @@ data class Lage(
     val zone: String? = null,          // Typ der Ortszone, in der du gerade bist (HO/SS/HUB) oder null
     val letzte: Letzte? = null,
     val nachfrage: LocalDate? = null,  // an diesem Tag schon nachgefragt
+    val e: Einstellungen = Einstellungen(),
 )
 
-data class Erinnerung(val ziel: String, val grund: String, val text: String, val label: String, val heim: Boolean, val wdh: Int = Regeln.WDH) {
+data class Erinnerung(val ziel: String, val grund: String, val text: String, val label: String, val heim: Boolean, val wdh: Int) {
     val anzeige get() = "$text → $label"
 }
 
@@ -74,13 +75,13 @@ object Waechter {
     fun istArbeitstag(d: LocalDate, urlaub: Urlaub?): Boolean =
         d.dayOfWeek != DayOfWeek.SATURDAY && d.dayOfWeek != DayOfWeek.SUNDAY && !Feiertage.ist(d) && urlaub?.umfasst(d) != true
 
-    fun startMinute(d: LocalDate) = if (d.dayOfWeek == DayOfWeek.TUESDAY || d.dayOfWeek == DayOfWeek.FRIDAY) Regeln.START_DI_FR else Regeln.START_SONST
+    fun startMinute(d: LocalDate, e: Einstellungen = Einstellungen()) = e.start(d)
 
     /** Beginn des naechsten Arbeitstags ab (einschliesslich) d. */
-    fun naechsterStart(ab: LocalDate, urlaub: Urlaub?): LocalDateTime {
+    fun naechsterStart(ab: LocalDate, urlaub: Urlaub?, e: Einstellungen = Einstellungen()): LocalDateTime {
         var d = ab
-        repeat(400) { if (istArbeitstag(d, urlaub)) return zeit(d, startMinute(d)); d = d.plusDays(1) }
-        return zeit(d, startMinute(d))
+        repeat(400) { if (istArbeitstag(d, urlaub)) return zeit(d, e.start(d)); d = d.plusDays(1) }
+        return zeit(d, e.start(d))
     }
 
     fun zeit(d: LocalDate, minute: Int): LocalDateTime = d.atStartOfDay().plusMinutes(minute.toLong())
@@ -96,14 +97,16 @@ object Waechter {
     fun entscheide(l: Lage): Entscheidung {
         val d = l.jetzt.toLocalDate()
         val now = l.jetzt.hour * 60 + l.jetzt.minute
-        val morgen = naechsterStart(d.plusDays(1), l.urlaub)
+        val se = l.e
+        val soll = se.sollAm(d)
+        val morgen = naechsterStart(d.plusDays(1), l.urlaub, se)
         fun ruhe(g: String) = Entscheidung(null, false, morgen, false, g)
         if (!istArbeitstag(d, l.urlaub)) return ruhe(if (l.urlaub?.umfasst(d) == true) "Urlaub" else "kein Arbeitstag")
         val z = heute(l)
         val p = praesenz(l)
-        if (z.status != "IN" && p >= Regeln.SOLL) return ruhe("Feierabend (${hm(p)})")
-        if (now >= Regeln.ABEND) return ruhe("nach 19:30")
-        val ab = startMinute(d)
+        if (z.status != "IN" && p >= soll) return ruhe("Feierabend (${hm(p)})")
+        if (now >= se.abend) return ruhe("nach ${hhmm(se.abend)}")
+        val ab = se.start(d)
         val ortszonenFenster = z.status != "IN" && z.buch == 0 && now >= ab && now < Regeln.ORTBIS
         if (z.status != "IN" && z.buch == 0 && now < ab) return Entscheidung(null, false, zeit(d, ab), false, "Erinnerungen ab ${hhmm(ab)}")
         if (l.spaeterBis != null && l.epoch < l.spaeterBis) {
@@ -116,25 +119,25 @@ object Waechter {
         val label = { ziel: String -> knopf(if (z.ort.isNotEmpty()) z.ort else if (ziel == "EIN") l.zone else null) }
         if (z.status == "IN") {
             val letzte = minutenOderNull(z.letzte) ?: 0
-            if (p >= Regeln.SOLL) {
-                val ue = p - Regeln.SOLL
-                e = Erinnerung("AUS", "8 h 25 voll", "8 h 25 voll seit ${hhmm(now - ue)}" + (if (ue >= 5) " (+$ue min)" else "") + " - ausstempeln?", label("AUS"), false)
+            if (p >= soll) {
+                val ue = p - soll
+                e = Erinnerung("AUS", "Soll voll", "Soll (${hm(soll)}) voll seit ${hhmm(now - ue)}" + (if (ue >= 5) " (+$ue min)" else "") + " - ausstempeln?", label("AUS"), false, se.wdh)
             } else {
-                kand += now + (Regeln.SOLL - p)
-                grund = "8 h 25 voll um ${hhmm(now + Regeln.SOLL - p)}"
+                kand += now + (soll - p)
+                grund = "Soll voll um ${hhmm(now + soll - p)}"
                 if (letzte < 660) {
-                    if (now >= Regeln.MITTAG && now < Regeln.MITTAG_ENDE)
-                        e = Erinnerung("AUS", "Mittagspause", "Mittagspause (heute ${hm(p)}) - ausstempeln?", label("AUS"), false)
-                    else if (now < Regeln.MITTAG) { kand += Regeln.MITTAG; grund = "Mittagspause-Erinnerung um 11:45" }
+                    if (now >= se.mittag && now < Regeln.MITTAG_ENDE)
+                        e = Erinnerung("AUS", "Mittagspause", "Mittagspause (heute ${hm(p)}) - ausstempeln?", label("AUS"), false, se.wdh)
+                    else if (now < se.mittag) { kand += se.mittag; grund = "Mittagspause-Erinnerung um ${hhmm(se.mittag)}" }
                 }
             }
         } else if (z.buch == 0) {
             if (!ortszonenFenster) return ruhe("nach 11:00 ohne Einstempeln - keine Erinnerung mehr")
             val da = l.zone?.takeUnless { it == "HO" && l.heuteNicht == d }
             e = when (da) {
-                "SS", "HUB" -> Erinnerung("EIN", "Ankunft", "Angekommen - einstempeln?", label("EIN"), false)
+                "SS", "HUB" -> Erinnerung("EIN", "Ankunft", "Angekommen - einstempeln?", label("EIN"), false, se.wdh)
                 "HO" -> Erinnerung("EIN", "Home Office",
-                    if (startMinute(d) == Regeln.START_DI_FR) "Zu Hause - einstempeln?" else "Noch zu Hause - heute Home Office? Einstempeln?", label("EIN"), true)
+                    if (se.istHoTag(d)) "Zu Hause - einstempeln?" else "Noch zu Hause - heute Home Office? Einstempeln?", label("EIN"), true, se.wdh)
                 else -> null
             }
             kand += Regeln.ORTBIS
@@ -142,10 +145,10 @@ object Waechter {
         } else {
             val lz = minutenOderNull(z.letzte) ?: -1
             if (lz in 660..870) {
-                val pz = if (z.ort == "SS") Regeln.PAUSE_SS else Regeln.PAUSE_KURZ
+                val pz = se.pause(z.ort)
                 when {
                     now < lz + pz -> { kand += lz + pz; grund = "Pause vorbei um ${hhmm(lz + pz)}" }
-                    now < lz + 60 -> { e = Erinnerung("EIN", "Pause vorbei", "Pause seit ${now - lz} min (heute ${hm(p)}) - wieder einstempeln?", label("EIN"), false); kand += lz + 60 }
+                    now < lz + 60 -> { e = Erinnerung("EIN", "Pause vorbei", "Pause seit ${now - lz} min (heute ${hm(p)}) - wieder einstempeln?", label("EIN"), false, se.wdh); kand += lz + 60 }
                     l.nachfrage != d -> e = Erinnerung("EIN", "Nachfrage",
                         "Seit ${hhmm(lz)} ausgestempelt (${now - lz} min) - schon wieder eingestempelt? Sonst jetzt einstempeln?", label("EIN"), false, 9999)
                     else -> return ruhe("ausgestempelt seit ${hhmm(lz)}")
@@ -163,7 +166,7 @@ object Waechter {
             } else if (e.wdh < 9999) kand += now + e.wdh
             grund = if (unterdrueckt) "Erinnerung läuft" else "Erinnerung"
         }
-        val w = kand.filter { it > now }.minOrNull()?.let { if (it >= Regeln.ABEND) null else zeit(d, it) } ?: morgen
+        val w = kand.filter { it > now }.minOrNull()?.let { if (it >= se.abend) null else zeit(d, it) } ?: morgen
         return Entscheidung(e, unterdrueckt, w, ortszonenFenster, grund.ifEmpty { "nächste Prüfung ${hhmm(w.hour * 60 + w.minute)}" })
     }
 }

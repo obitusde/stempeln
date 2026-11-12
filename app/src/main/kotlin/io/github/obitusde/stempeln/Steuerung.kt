@@ -1,4 +1,4 @@
-// Stempeln-App: Steuerung - wird bei jedem Aufwachen einmal kurz durchlaufen (Wecker, Ortszone, Knopf, neuer Stand, Start)
+// Stempeln-App v0.3.0: Steuerung - wird bei jedem Aufwachen einmal kurz durchlaufen (Wecker, Ortszone, Knopf, neuer Stand, Start)
 package io.github.obitusde.stempeln
 
 import android.Manifest
@@ -26,6 +26,10 @@ object Steuerung {
     const val ID_ERINNERUNG = 4711
     const val ID_BEFEHL = 4720
     const val ID_INFO = 4730
+    const val ID_LAUF = 4740          // Fortschritt und Ergebnis eines Laufs (eine Meldung, wird ersetzt)
+    const val KANAL_LAUF = "lauf"
+    const val KANAL_OK = "geklappt"
+    const val KANAL_PROBLEM = "problem"
     const val AKTUALISIERT = "io.github.obitusde.stempeln.AKTUALISIERT"
 
     fun jetzt(): LocalDateTime = LocalDateTime.now(Regeln.ZONE)
@@ -37,12 +41,42 @@ object Steuerung {
         nm.createNotificationChannel(NotificationChannel(KANAL_INFO, "Hinweise", NotificationManager.IMPORTANCE_DEFAULT))
         // Befehle an MacroDroid: still, MacroDroid liest sie trotzdem
         nm.createNotificationChannel(NotificationChannel(KANAL_BEFEHL, "Befehle an MacroDroid (still)", NotificationManager.IMPORTANCE_MIN))
+        nm.createNotificationChannel(NotificationChannel(KANAL_LAUF, "Stempeln läuft (still)", NotificationManager.IMPORTANCE_LOW))
+        fun mitTon(id: String, name: String, wichtig: Int, ton: Int, muster: LongArray) = nm.createNotificationChannel(NotificationChannel(id, name, wichtig).apply {
+            setSound(android.net.Uri.parse("android.resource://${c.packageName}/$ton"),
+                android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+            enableVibration(true); vibrationPattern = muster
+        })
+        mitTon(KANAL_OK, "Geklappt", NotificationManager.IMPORTANCE_DEFAULT, R.raw.geklappt, longArrayOf(0, 120, 80, 120))
+        mitTon(KANAL_PROBLEM, "Problem", NotificationManager.IMPORTANCE_HIGH, R.raw.problem, longArrayOf(0, 400, 150, 400, 150, 600))
     }
 
     fun lage(c: Context, zone: String? = aktuelleZone(c)): Lage = Lage(
         jetzt(), epoch(), Speicher.zustand(), Speicher.urlaub(c), Speicher.spaeterBis(), Speicher.heuteNicht(),
-        zone, Speicher.letzte(c), Speicher.nachfrage(c),
+        zone, Speicher.letzte(c), Speicher.nachfrage(c), Speicher.einstellungen(),
     )
+
+    fun aktuelleZonenName(c: Context): String? = Speicher.zonenName(Speicher.drin(c), aktuelleZone(c))
+
+    /** Meldung der Skripte (Fortschritt oder Ergebnis eines Laufs): art = fortschritt | hinweis | ok | problem. */
+    fun laufMeldung(c: Context, art: String, text: String) {
+        kanaele(c)
+        val t = jetzt()
+        val (kanal, titel) = when (art) {
+            "ok" -> KANAL_OK to "✅ Geklappt"
+            "problem" -> KANAL_PROBLEM to "⚠ Bitte prüfen"
+            "hinweis" -> KANAL_INFO to "Stempeln – bitte schauen"
+            else -> KANAL_LAUF to "Stempeln läuft …"
+        }
+        val inhalt = "%02d:%02d · %s".format(t.hour, t.minute, text)
+        val b = Notification.Builder(c, kanal).setSmallIcon(R.drawable.ic_stempel).setContentTitle(titel).setContentText(inhalt)
+            .setStyle(Notification.BigTextStyle().bigText(inhalt))
+            .setContentIntent(PendingIntent.getActivity(c, 0, Intent(c, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE))
+            .setAutoCancel(true).setOnlyAlertOnce(false)
+        if (art == "fortschritt" || art == "hinweis") b.setTimeoutAfter(3 * 60_000L)
+        c.getSystemService(NotificationManager::class.java).notify(ID_LAUF, b.build())
+    }
 
     fun aktuelleZone(c: Context): String? {
         val drin = Speicher.drin(c).map { it.substringBefore('#') }
@@ -119,6 +153,7 @@ object Steuerung {
         val nm = c.getSystemService(NotificationManager::class.java)
         nm.cancel(ID_BEFEHL)
         nm.notify(ID_BEFEHL, n)
+        laufMeldung(c, "fortschritt", if (befehl == "stand") "Stand lesen startet …" else "Stempeln startet …")
     }
 
     private fun alarmZeit(t: LocalDateTime) = t.atZone(Regeln.ZONE).toInstant().toEpochMilli()

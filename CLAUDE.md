@@ -1,6 +1,6 @@
 # Stempeln — Projektstand für Claude
 
-**Stand 12.11.2026** · App (`app/`, `logik/`) v0.2.1 · Skripte (`skripte/`, `SKV` in `kopf.sh`) v4.6 · Makros (`makros/`) Stempeln v4.3 + Stand v4.3 · Workflow `.github/workflows/app.yml` v1.0.0
+**Stand 12.11.2026** · App (`app/`, `logik/`) v0.3.0 · Skripte (`skripte/`, `SKV` in `kopf.sh`) v4.7 · Makros (`makros/`) Stempeln v4.3 + Stand v4.3 · Workflow `.github/workflows/app.yml` v1.0.0
 
 ## 1. Nutzer und Arbeitsweise (unbedingt beachten)
 - **Christof** (GitHub `obitusde`), Pixel 8 (Android 17), MacroDroid Pro + Shizuku. Will so wenig wie möglich selbst machen, kein Terminal.
@@ -25,18 +25,21 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
-1. (12.11.) Pause in Minuten anzeigen: geplant (30/45 min nach Ort), läuft gerade (seit … min), schon gemacht (… min).
-2. (12.11.) Zähler Arbeitstage bis zum Arbeitsende: Mo–Fr, **VD-Feiertage abziehen**, eingetragenen Urlaub **nicht** abziehen, **letzter Arbeitstag 31.5.2028** (1.6. frei), **heute zählt mit**.
-3. (12.11.) Menü „Einstellungen“ – Christof: 1a 2a 3a = Datei `Download/stempeln/einstellungen.txt` (App + Skripte lesen sie); Arbeitszeit mit „gültig ab“-Datum; alle Werte: Soll/Tag, letzter Arbeitstag (31.5.2028), Pause HO/HUB 30 / SS 45, Home-Office-Tage (Di, Fr), Erinnerung ab (7:15 / 7:45), Mittag (11:45), Wiederholung (15 min), Abendgrenze (19:30).
-4. (12.11.) Ergebnis nach jedem Stempeln **sehen und hören**: Meldung von der App selbst (ende.sh schreibt Ergebnis in eine Datei + Broadcast), eigener Ton für „geklappt“ und anderer für „Problem“; Shell-Meldung (`cmd notification`) dann nur noch als Rückfall. Christof 1a: „geklappt“ = kurzer Ton + Vibration, „Problem“ = anderer, auffälliger Ton + Vibration.
-5. (12.11.) In der App anzeigen, was der nächste Stempel-Knopf tut: ein/aus und mit welchem Knopf/Ort (z. B. „Nächstes Stempeln: AUSstempeln · HUB“; morgens: Ort aus Ortszone oder „per Standort beim Stempeln“). Christof 2a: der große Knopf zeigt es selbst („Ausstempeln · HUB“).
-   Plan: nur App + Skripte, **kein Makro-Import** nötig (Reihenfolge: erst App, dann Skripte).
+(leer)
+
+Umgesetzt 12.11. abends (Christof: „Bauen“) – App v0.3.0 + Skripte v4.7, **kein Makro-Import**:
+- **Einstellungen** (Knopf „Einstellungen“): Datei `Download/stempeln/einstellungen.txt` (`logik/Einstellungen.kt`, `E_SOLL='2000-01-01=08:25,…'` mit „gültig ab“, `E_ENDE`, `E_PAUSE_KURZ/SS`, `E_HO_TAGE` (ISO-Ziffern, 25 = Di+Fr), `E_START_HO/BUERO`, `E_MITTAG`, `E_WDH`, `E_ABEND`); App legt sie mit den heutigen Werten an; Wächter/Anzeige nehmen `Lage.e`; Skripte laden sie in `kopf.sh` (`soll_am`, `pause_fuer`).
+- **Pause** in der Statuskarte: „Pause läuft seit … min · geplant …, vorbei um …“ / „Pause gemacht: … min“ (`Z_PAUSE` in zustand.txt, neu von ende.sh) / „Pause geplant: … min“.
+- **Zähler** „Noch Arbeitstage“ bis zum letzten Arbeitstag (Mo–Fr ohne VD-Feiertage, Urlaub zählt mit, heute zählt mit; 12.11.2026 → 395).
+- **Großer Knopf** zeigt, was er tut: „Ausstempeln · HUB“, „Einstempeln · SUR SITE (Le Brassus)“, morgens ohne Ortszone „Einstempeln · Ort per Standort“ (`Anzeige.naechstes`).
+- **Meldungen mit Ton:** Skripte rufen `note … ART` → `am broadcast … MELDUNG --es art --es text` → App zeigt eine Meldung (ID 4740, wird ersetzt): fortschritt (still), hinweis (Standardton), ok (Kanal „Geklappt“, `res/raw/geklappt.wav`, kurz hell), problem (Kanal „Problem“, `res/raw/problem.wav`, drei tiefe Töne, starke Vibration). App antwortet mit resultCode 7; fehlt `result=7` in der am-Ausgabe → Shell-Meldung wie früher (Rückfall). Problem = nicht nachgeprüft, schon gestempelt/nichts getippt, Seite nicht erreicht, unbekannter Ort.
 
 Umgesetzt 12.11. (Christof: „Setze das alles jetzt um“):
 - Makros v4.3: erste Prüfung nach ~5 s, bis zu 8 Runden „Bildschirm lesen → `pruef.sh` (R=1..8) → Agenda da?“; **Wartezeiten stehen in `pruef.sh`** (falsche Seite/gesperrt → sofort neu öffnen + 5 s, ohne Adresse erst ab Runde 3, höchstens 3× neu; lädt noch → 2 s), nach dem Tipp wartet `haupt.sh` 3 s. Kein „Startbildschirm“ mehr: `ende.sh` ruft `zurueck` → **App Stempeln kommt nach jedem Lauf nach vorn**.
 - App v0.2.0: Status mit Fortschrittsbalken, Zeilen Arbeitszeit Soll / Bereits gearbeitet / Fehlt noch / Voraussichtlich Schluss (+ Erklärung, `logik/Anzeige.kt`, Pause 30/45 min eingerechnet), „Überstunden“ (= Saldo bis gestern) mit Arbeitstagen zu 8 h 25; Heures du jour, Rattrapage (= Urlaubs-Ansparminuten, egal), HS ausgeblendet; Planen +15/+30/+45 min/+1 h/17:00/17:30/Uhrzeit, Knopf „Zurück“; Urlaub: erster + **letzter Urlaubstag** mit Hinweis, Status zeigt Urlaub und „geht wieder los am …“; Meldungen verschwinden nach 60 s; Umlaute; Inhalt nicht mehr unter der Statusleiste.
 
 ## 4. Offen / zu testen (Pixel)
+000. v0.3.0 / v4.7 (12.11.): App aktualisieren (Knopf), dann Skripte aktualisieren, Einstellungen prüfen. Prüfen: Ton „geklappt“/„Problem“ kommt, keine doppelte Meldung (sonst liefert `am broadcast` kein result=7 → Rückfall), Knopf-Text, Pause, Zähler 395.
 00. ✅ 12.11.2026 „Klappt alles“: v0.2.1 / v4.6 / v4.3: Secrets gesetzt, v0.2.1 = erste fest signierte Version → einmal alte App deinstallieren, v0.2.1 installieren, Rechte neu (danach Updates per Knopf), Skripte aktualisieren, Makros v4.3 importieren, v4.2 löschen. Prüfen: Startseite wird schnell erkannt? App kommt nach Stempeln/Stand zurück? Anzeige verständlich?
 0. ✅ 12.11.2026: App v0.1.0 läuft, Import Stempeln/Stand v4.2 ok, „Stand lesen“ aus der App startet MacroDroid, Konto (Saldo 13:25, Rattrapage 71:40) kommt in der App an, Skripte v4.5, Shizuku erkannt.
 1. App v0.1.0 installieren, Rechte (Dateien, Benachrichtigungen, Standort „immer“), Skripte v4.5 laden, Makros v4.2 importieren, alte Makros (Wächter, Spaeter, Frei, Heute nicht, Update, Stempeln/Stand v4.1) löschen.

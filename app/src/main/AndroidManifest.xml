@@ -28,9 +28,9 @@
         <receiver android:name=".WeckerEmpfaenger" android:exported="false" />
         <receiver android:name=".OrtEmpfaenger" android:exported="false" />
         <receiver android:name=".KnopfEmpfaenger" android:exported="false" />
-        <!-- Die Shell-Skripte (ende.sh) melden einen neuen Stand: am broadcast -n io.github.obitusde.stempeln/.StandEmpfaenger -->
+        <!-- Die Shell-Skripte melden neuen Stand (STAND) und Fortschritt/Ergebnis (MELDUNG): am broadcast -n io.github.obitusde.stempeln/.StandEmpfaenger -->
         <receiver android:name=".StandEmpfaenger" android:exported="true">
-            <intent-filter><action android:name="io.github.obitusde.stempeln.STAND" /></intent-filter>
+            <intent-filter><action android:name="io.github.obitusde.stempeln.STAND" /><action android:name="io.github.obitusde.stempeln.MELDUNG" /></intent-filter>
         </receiver>
         <receiver android:name=".StartEmpfaenger" android:exported="true">
             <intent-filter>

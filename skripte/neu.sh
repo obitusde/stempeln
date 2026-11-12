@@ -4,7 +4,7 @@ lauf
 input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
 bis=$(( $(date +%s) + 8 )); n=0
 while [ "$(gesperrt)" != 0 ] && [ $(date +%s) -lt $bis ]; do
-  [ $n = 0 ] && note "Bitte entsperren - ich pruefe noch die Stempelseite" "Stempeln" stempeln
+  [ $n = 0 ] && note "Bitte entsperren - ich pruefe noch die Stempelseite" "Stempeln" stempeln hinweis
   n=$(( n + 1 )); sleep 1
 done
 t "neu: Bildschirm geweckt, $n s aufs Entsperren gewartet"

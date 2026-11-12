@@ -51,9 +51,19 @@ class KnopfEmpfaenger : BroadcastReceiver() {
     }
 }
 
-/** Die Skripte haben einen neuen Stand gelesen (nach Stempeln / Stand). */
+/** Die Skripte melden: neuer Stand (STAND) oder Fortschritt/Ergebnis eines Laufs (MELDUNG, mit art + text). */
 class StandEmpfaenger : BroadcastReceiver() {
-    override fun onReceive(c: Context, i: Intent) = Steuerung.aktualisieren(c, "stand")
+    companion object { const val MELDUNG = "io.github.obitusde.stempeln.MELDUNG"; const val ANGEKOMMEN = 7 }
+    override fun onReceive(c: Context, i: Intent) {
+        if (i.action == MELDUNG) {
+            val art = i.getStringExtra("art") ?: "fortschritt"
+            Steuerung.laufMeldung(c, art, i.getStringExtra("text") ?: "")
+            // Rueckmeldung an das Skript (am broadcast zeigt "result=7"): dann keine Shell-Meldung als Rueckfall
+            if (isOrderedBroadcast) resultCode = ANGEKOMMEN
+            if (art == "fortschritt" || art == "hinweis") return
+        }
+        Steuerung.aktualisieren(c, "stand")
+    }
 }
 
 /** Nach Neustart / App-Update: Wecker und Ortszonen neu stellen (Android vergisst sie). */

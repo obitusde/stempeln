@@ -54,41 +54,44 @@ if [ -n "$PRES" ] && [ "$STATUS" != "?" ]; then
     *) if [ -z "$Z_ORT" ] && [ "$STATUS" = IN ]; then wahl EIN; Z_ORT=$KTYP; Z_NAME=$KNAME; fi ;;
   esac
   { echo "Z_DATUM=$HEUTE"; echo "Z_STATUS=$STATUS"; echo "Z_PRES=$PRES"; echo "Z_LESE=$EPOCH"; echo "Z_LETZTE=$LETZTE"; echo "Z_BUCH=$BUCH"
-    echo "Z_ORT=$Z_ORT"; echo "Z_NAME='$Z_NAME'"; } > $B/zustand.txt
+    echo "Z_ORT=$Z_ORT"; echo "Z_NAME='$Z_NAME'"; echo "Z_PAUSE=$PAUSE"; } > $B/zustand.txt
   ZL=""; [ -n "$Z_ORT" ] && ZL=" - $(label "$Z_ORT")"
   REST=$(( SOLL - PRES ))
   if [ "$STATUS" = IN ]; then
-    PZU=0; [ $PAUSE = 0 ] && [ $NOW -lt 870 ] && PZU=45
+    PZU=0; [ $PAUSE = 0 ] && [ $NOW -lt 870 ] && PZU=$(pause_fuer "$Z_ORT")
     if [ $REST -gt 0 ]; then INFO="heute $(hm $PRES) - noch $(hm $REST) -> fertig um $(hm $(( (NOW + REST + PZU) % 1440 )))"
-      [ $PZU -gt 0 ] && INFO="$INFO (mit 45 min Pause)"
-    else INFO="heute $(hm $PRES) - 8 h 25 schon voll"; fi
+      [ $PZU -gt 0 ] && INFO="$INFO (mit $PZU min Pause)"
+    else INFO="heute $(hm $PRES) - Soll $(hm $SOLL) schon voll"; fi
     KOPF="Eingestempelt${LETZTE:+ $LETZTE}$ZL"
   else
     if [ $REST -gt 0 ]; then INFO="heute $(hm $PRES) - noch $(hm $REST) offen"
       L2=$(minuten "${LETZTE:-0:00}")
+      PZ=$(pause_fuer "$Z_ORT")
       [ $L2 -ge 660 ] && [ $L2 -le 870 ] && INFO="$INFO
-Pause 30 min bis $(hm $(( L2 + 30 ))), 45 min bis $(hm $(( L2 + 45 )))"
+Pause $PZ min bis $(hm $(( L2 + PZ )))"
     else INFO="heute $(hm $PRES) - Feierabend"; fi
     KOPF="Ausgestempelt${LETZTE:+ $LETZTE}"
     [ "$A_AKTION" = tipp ] && KOPF="$KOPF - $(label "$A_TYP")"
   fi
+  ART=problem
   if [ -n "$VERM" ]; then MELD="$A_TEXT getippt - $VERM, Buchung nicht nachgeprueft. Gemerkt:
 $KOPF
 $INFO"
   elif [ "$A_AKTION" = tipp ] && [ "$STATUS" = "$A_STATUS" ]; then
     MELD="ACHTUNG: $A_TEXT getippt, aber der Stand hat sich nicht geaendert ($KOPF). Bitte pruefen!"
-  elif [ "$A_AKTION" = manuell ] && [ "$STATUS" != "$A_STATUS" ]; then MELD="$KOPF (von Hand)
+  elif [ "$A_AKTION" = manuell ] && [ "$STATUS" != "$A_STATUS" ]; then ART=ok; MELD="$KOPF (von Hand)
 $INFO"
   elif [ -n "$A_KORR" ]; then MELD="$A_TEXT - Stand gemerkt:
 $KOPF
 $INFO"
   elif [ -n "$A_TEXT" ] && [ "$A_AKTION" != tipp ]; then MELD="$A_TEXT
 $KOPF - $INFO"
-  else MELD="$KOPF
+  else ART=ok; MELD="$KOPF
 $INFO"; fi
   # gemerkte Erinnerung passt nicht mehr zum Stand -> Waechter fragt neu
   rm -f $B/vorschlag.txt
 else
+  ART=problem
   if sperrbild "$D/seite-nach.txt"; then MELD="Handy war gesperrt - Stand nicht gelesen, bitte selbst pruefen"
   elif [ "$SEITE" != clock ]; then MELD="Stempelseite nicht erreicht (Chrome zeigte ${U:-eine andere Seite}) - Stand nicht gelesen, bitte selbst pruefen"
   elif [ "$HALB" = 1 ]; then MELD="Stempelseite nicht fertig geladen - Stand nicht gelesen, bitte selbst pruefen"
@@ -97,7 +100,7 @@ else
   [ "$A_AKTION" = keine ] && [ -n "$A_TEXT" ] && MELD=$A_TEXT
 fi
 t "Meldung: $MELD"
-note "$MELD" "Stempeln" stempeln
+note "$MELD" "Stempeln" stempeln $ART
 rm -f $B/lock.txt
 app_melden
 zurueck

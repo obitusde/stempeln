@@ -20,6 +20,19 @@ object Speicher {
     fun konto() = Konto.aus(lies("konto.txt"))
     fun orte() = leseOrte(lies("orte.txt"))
     fun skriptVersion() = lies("skripte/VERSION")?.trim()
+    /** Einstellungen (gemeinsam mit den Skripten); fehlt die Datei, wird sie mit den heutigen Werten angelegt. */
+    fun einstellungen(): Einstellungen {
+        val t = lies("einstellungen.txt")
+        if (t == null && zugriff()) schreib("einstellungen.txt", Einstellungen().text())
+        return Einstellungen.aus(t)
+    }
+    fun setzeEinstellungen(e: Einstellungen) = schreib("einstellungen.txt", e.text())
+    /** Name der Ortszone, in der du gerade bist (aus orte.txt), z. B. "Le Brassus". */
+    fun zonenName(drin: Set<String>, typ: String?): String? {
+        if (typ == null) return null
+        val i = drin.firstOrNull { it.substringBefore('#') == typ }?.substringAfter('#')?.toIntOrNull() ?: return null
+        return orte().getOrNull(i)?.name
+    }
 
     // gemeinsame Dateien mit den Skripten (gleiche Formate wie bisher)
     fun spaeterBis(): Long? = lies("spaeter.txt")?.trim()?.toLongOrNull()

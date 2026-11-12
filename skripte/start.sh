@@ -8,7 +8,7 @@ t "$TEXT (Skripte v$SKV) - Start"
 [ "$(gesperrt)" != 0 ] && input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
 n=0
 while [ "$(gesperrt)" != 0 ] && [ $n -lt 60 ]; do
-  [ $n = 0 ] && note "Bitte entsperren - dann geht es weiter" "Stempeln" stempeln
+  [ $n = 0 ] && note "Bitte entsperren - dann geht es weiter" "Stempeln" stempeln hinweis
   sleep 1; n=$(( n + 1 ))
 done
 cmd statusbar collapse </dev/null >/dev/null 2>&1
