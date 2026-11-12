@@ -24,7 +24,11 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - **Signieren:** Secrets `STEMPELN_KEYSTORE` (Base64) + `STEMPELN_PASSWORT`; ohne sie Debug-Schlüssel (Update nur per Neuinstallation). Schlüssel nie ins Repo/Chat.
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
-## 3. Offen / zu testen (Pixel)
+## 3. Sammelliste – erst bauen, wenn Christof es sagt
+1. (12.11.) Falsche Seite `/ux/home` schneller erkennen: Adresse schon nach 6 s prüfen (pruef.sh), zweite Prüfung nach ~14 s, sonst weiter warten; Wartezeiten möglichst in die Skripte verlegen (dann künftig ohne Import). Braucht Import Stempeln + Stand.
+
+## 4. Offen / zu testen (Pixel)
+0. ✅ 12.11.2026: App v0.1.0 läuft, Import Stempeln/Stand v4.2 ok, „Stand lesen“ aus der App startet MacroDroid, Konto (Saldo 13:25, Rattrapage 71:40) kommt in der App an, Skripte v4.5, Shizuku erkannt.
 1. App v0.1.0 installieren, Rechte (Dateien, Benachrichtigungen, Standort „immer“), Skripte v4.5 laden, Makros v4.2 importieren, alte Makros (Wächter, Spaeter, Frei, Heute nicht, Update, Stempeln/Stand v4.1) löschen.
 2. Knopf Stempeln/Stand lesen startet MacroDroid? Kommt der neue Stand in der App an (Broadcast aus ende.sh)? Konto-Werte richtig?
 3. Morgens: Ortszonen-Erinnerung zu Hause / im Büro; Mittag, Pause, 8 h 25; Planen; Urlaub.
