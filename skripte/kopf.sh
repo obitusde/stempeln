@@ -1,6 +1,6 @@
 # Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=4.5
+SKV=4.6
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0
@@ -25,6 +25,8 @@ seite_art() { U=$(grep -o 'webquartz/ux/[a-z]*' "$1" 2>/dev/null | head -1)
   esac; }
 # App "Stempeln" benachrichtigen (neuer Stand / Konto) - sie stellt danach ihre Wecker neu
 app_melden() { am broadcast -n io.github.obitusde.stempeln/.StandEmpfaenger -a io.github.obitusde.stempeln.STAND </dev/null >/dev/null 2>&1; }
+# Zum Schluss die App "Stempeln" zeigen (neuer Stand) statt Chrome - wie ein Tipp aufs App-Symbol
+zurueck() { am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n io.github.obitusde.stempeln/.MainActivity </dev/null >/dev/null 2>&1; }
 # Sperrbildschirm im Bildschirminhalt $1?
 sperrbild() { grep -qE 'systemui:id/(keyguard|device_entry)' "$1" 2>/dev/null; }
 # Sperrbildschirm sichtbar? (0 = nein)

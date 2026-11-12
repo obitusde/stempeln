@@ -25,3 +25,5 @@ fi
   echo "A_PRES=$PRES"; echo "A_LETZTE=$LETZTE"; echo "A_BUCH=$BUCH"; echo "A_PAUSE=$PAUSE"
   echo "A_WUNSCH=$WUNSCH"; echo "A_VLABEL='$V_LABEL'"; } > "$D/aktion.txt"
 t "Aktion: $AKTION - $ERGT"
+# nach einem Tipp kurz warten, bis die Buchung gespeichert ist (danach laedt die Huelle die Seite neu)
+[ "$AKTION" = tipp ] && sleep 3

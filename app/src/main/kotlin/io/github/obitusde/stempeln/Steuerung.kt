@@ -68,12 +68,12 @@ object Steuerung {
         weckerStellen(c, e.wecker)
         planStellen(c)
         val w = e.wecker
-        Speicher.setzeNaechster(c, (if (w != null) "Naechstes Aufwachen: " + (if (w.toLocalDate() == l.jetzt.toLocalDate()) "" else w.toLocalDate().let { "${it.dayOfMonth}.${it.monthValue}. " }) +
+        Speicher.setzeNaechster(c, (if (w != null) "Nächstes Aufwachen: " + (if (w.toLocalDate() == l.jetzt.toLocalDate()) "" else w.toLocalDate().let { "${it.dayOfMonth}.${it.monthValue}. " }) +
             "%02d:%02d".format(w.hour, w.minute) else "") + (if (e.grund.isNotEmpty()) " (${e.grund})" else ""))
         // Morgens beim ersten Aufwachen: laeuft Shizuku? (ohne Shizuku kann MacroDroid nicht tippen)
         if (e.ortszonen && Speicher.shizukuWarnung(c) != l.jetzt.toLocalDate()) {
             Speicher.setzeShizukuWarnung(c, l.jetzt.toLocalDate())
-            if (!shizukuLaeuft()) hinweis(c, "Shizuku laeuft nicht", "Bitte Shizuku starten (nach jedem Neustart noetig) - sonst kann MacroDroid nicht stempeln.")
+            if (!shizukuLaeuft()) hinweis(c, "Shizuku läuft nicht", "Bitte Shizuku starten (nach jedem Neustart nötig) – sonst kann MacroDroid nicht stempeln.")
         }
         c.sendBroadcast(Intent(AKTUALISIERT).setPackage(c.packageName))
     }
@@ -96,7 +96,7 @@ object Steuerung {
             b.addAction(Notification.Action.Builder(null, text, pi(c, code, Intent(c, KnopfEmpfaenger::class.java).setAction(aktion))).build())
         knopf("Stempeln", KnopfEmpfaenger.STEMPELN, 11)
         knopf("Schon gestempelt", KnopfEmpfaenger.STAND, 12)
-        if (e.heim) knopf("Heute nicht", KnopfEmpfaenger.HEUTE_NICHT, 13) else knopf("Spaeter", KnopfEmpfaenger.SPAETER, 14)
+        if (e.heim) knopf("Heute nicht", KnopfEmpfaenger.HEUTE_NICHT, 13) else knopf("Später", KnopfEmpfaenger.SPAETER, 14)
         c.getSystemService(NotificationManager::class.java).notify(ID_ERINNERUNG, b.build())
     }
 

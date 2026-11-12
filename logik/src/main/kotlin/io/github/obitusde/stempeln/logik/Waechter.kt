@@ -108,7 +108,7 @@ object Waechter {
         if (z.status != "IN" && z.buch == 0 && now < ab) return Entscheidung(null, false, zeit(d, ab), false, "Erinnerungen ab ${hhmm(ab)}")
         if (l.spaeterBis != null && l.epoch < l.spaeterBis) {
             val bis = LocalDateTime.ofInstant(java.time.Instant.ofEpochSecond(l.spaeterBis), Regeln.ZONE)
-            return Entscheidung(null, true, bis, ortszonenFenster, "Spaeter bis ${hhmm(bis.hour * 60 + bis.minute)}")
+            return Entscheidung(null, true, bis, ortszonenFenster, "Später bis ${hhmm(bis.hour * 60 + bis.minute)}")
         }
         val kand = mutableListOf<Int>()   // Minuten des Tages fuer das naechste Aufwachen
         var e: Erinnerung? = null
@@ -161,9 +161,9 @@ object Waechter {
                 if (e.wdh < 9999) kand += now + ((lt.zeit + e.wdh * 60 - l.epoch + 59) / 60).toInt().coerceAtLeast(1)
                 e = null
             } else if (e.wdh < 9999) kand += now + e.wdh
-            grund = if (unterdrueckt) "Erinnerung laeuft" else "Erinnerung"
+            grund = if (unterdrueckt) "Erinnerung läuft" else "Erinnerung"
         }
         val w = kand.filter { it > now }.minOrNull()?.let { if (it >= Regeln.ABEND) null else zeit(d, it) } ?: morgen
-        return Entscheidung(e, unterdrueckt, w, ortszonenFenster, grund.ifEmpty { "naechste Pruefung ${hhmm(w.hour * 60 + w.minute)}" })
+        return Entscheidung(e, unterdrueckt, w, ortszonenFenster, grund.ifEmpty { "nächste Prüfung ${hhmm(w.hour * 60 + w.minute)}" })
     }
 }

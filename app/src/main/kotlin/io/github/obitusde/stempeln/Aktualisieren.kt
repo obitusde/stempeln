@@ -27,7 +27,7 @@ object Aktualisieren {
     fun skripte(): String {
         val alt = Speicher.skriptVersion()
         val p = lesePaket(String(hole(PAKET + "?t=" + System.currentTimeMillis()), Charsets.UTF_8))
-            ?: return "Paket von GitHub unvollstaendig - nichts geaendert" + (alt?.let { " (es bleibt v$it)" } ?: "")
+            ?: return "Paket von GitHub unvollständig – nichts geändert" + (alt?.let { " (es bleibt v$it)" } ?: "")
         if (p.version == alt) return "Skripte v${p.version} waren schon aktuell"
         val o = Speicher.ordner; o.mkdirs()
         val neu = File(o, "skripte-neu"); neu.deleteRecursively(); neu.mkdirs()

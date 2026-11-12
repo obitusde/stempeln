@@ -1,9 +1,9 @@
-#STEMPELPAKET 4.5
+#STEMPELPAKET 4.6
 # Stempel-Skripte fuer MacroDroid (Makro "Stempeln Update" packt aus). Nicht von Hand aendern.
 #DATEI kopf.sh
 # Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=4.5
+SKV=4.6
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0
@@ -28,6 +28,8 @@ seite_art() { U=$(grep -o 'webquartz/ux/[a-z]*' "$1" 2>/dev/null | head -1)
   esac; }
 # App "Stempeln" benachrichtigen (neuer Stand / Konto) - sie stellt danach ihre Wecker neu
 app_melden() { am broadcast -n io.github.obitusde.stempeln/.StandEmpfaenger -a io.github.obitusde.stempeln.STAND </dev/null >/dev/null 2>&1; }
+# Zum Schluss die App "Stempeln" zeigen (neuer Stand) statt Chrome - wie ein Tipp aufs App-Symbol
+zurueck() { am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n io.github.obitusde.stempeln/.MainActivity </dev/null >/dev/null 2>&1; }
 # Sperrbildschirm im Bildschirminhalt $1?
 sperrbild() { grep -qE 'systemui:id/(keyguard|device_entry)' "$1" 2>/dev/null; }
 # Sperrbildschirm sichtbar? (0 = nein)
@@ -142,23 +144,36 @@ t "neu: Bildschirm geweckt, $n s aufs Entsperren gewartet"
 am start -a android.intent.action.VIEW -d "https://aptime.cloud-horoquartz.fr/webquartz/ux/clock" -p com.android.chrome --es com.android.browser.application_id macrodroid.stempeln </dev/null >/dev/null 2>&1
 sleep 7
 #DATEI pruef.sh
-# Stempelseite nach ~18 s noch nicht fertig (Agenda fehlt): Bildschirminhalt pruefen
-# Handy gesperrt / Chrome auf einer anderen Seite (z. B. Startseite .../ux/home nach neuer Anmeldung) -> Stempelseite neu oeffnen
-# Stempelseite da, laedt nur langsam -> nichts tun, die Huelle wartet weiter (bis 24 s)
+# Stempelseite noch nicht fertig (Agenda fehlt) - die Huelle ruft das bis zu 8x auf (R=1..8), die Wartezeiten stehen HIER (aendern ohne Import)
+# Handy gesperrt / Chrome sicher auf einer anderen Seite (Adresse z. B. .../ux/home) -> sofort Stempelseite neu oeffnen (hoechstens 3x)
+# keine Adresse lesbar und keine Stempelseite: erst ab der 3. Pruefung neu oeffnen (sonst stoert es eine langsam ladende Seite)
+# Stempelseite da, laedt nur langsam -> kurz warten
 lauf
-cp $B/seite-roh.txt "$D/seite-pruef.txt" 2>/dev/null
-seite_art "$D/seite-pruef.txt"
-NEU=0; [ "$SEITE" = clock ] || NEU=1
-input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
-bis=$(( $(date +%s) + 12 )); n=0
-while [ "$(gesperrt)" != 0 ] && [ $(date +%s) -lt $bis ]; do
-  [ $n = 0 ] && note "Bitte entsperren - ich warte noch auf die Stempelseite" "Stempeln" stempeln
-  n=$(( n + 1 )); NEU=1; sleep 1
-done
-t "pruef: Seite=$SEITE (${U:-ohne Adresse}), $n s gesperrt, neu oeffnen=$NEU"
+R=${R:-9}
+cp $B/seite-roh.txt "$D/seite-pruef$R.txt" 2>/dev/null
+seite_art "$D/seite-pruef$R.txt"
+NEU=0; GRUND=""
+if sperrbild "$D/seite-pruef$R.txt" || [ "$(gesperrt)" != 0 ]; then NEU=1; GRUND="gesperrt"
+elif [ -n "$U" ] && [ "$SEITE" != clock ]; then NEU=1; GRUND="falsche Seite"
+elif [ "$SEITE" != clock ] && [ $R -ge 3 ]; then NEU=1; GRUND="keine Stempelseite erkannt"; fi
 if [ $NEU = 1 ]; then
-  am start -a android.intent.action.VIEW -d "https://aptime.cloud-horoquartz.fr/webquartz/ux/clock" -p com.android.chrome --es com.android.browser.application_id macrodroid.stempeln </dev/null >/dev/null 2>&1
-  sleep 7
+  input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
+  bis=$(( $(date +%s) + 8 )); n=0
+  while [ "$(gesperrt)" != 0 ] && [ $(date +%s) -lt $bis ]; do
+    [ $n = 0 ] && note "Bitte entsperren - ich warte noch auf die Stempelseite" "Stempeln" stempeln
+    n=$(( n + 1 )); sleep 1
+  done
+  Z=$(cat "$D/neu-zahl.txt" 2>/dev/null); Z=${Z:-0}
+  if [ $Z -lt 3 ]; then
+    echo $(( Z + 1 )) > "$D/neu-zahl.txt"
+    t "pruef $R: $GRUND (${U:-ohne Adresse}), $n s gesperrt -> Stempelseite neu geoeffnet ($(( Z + 1 )). Mal)"
+    am start -a android.intent.action.VIEW -d "https://aptime.cloud-horoquartz.fr/webquartz/ux/clock" -p com.android.chrome --es com.android.browser.application_id macrodroid.stempeln </dev/null >/dev/null 2>&1
+    sleep 5
+  else
+    t "pruef $R: $GRUND (${U:-ohne Adresse}) - schon 3x neu geoeffnet, warte nur"; sleep 3
+  fi
+else
+  t "pruef $R: Seite=$SEITE (${U:-ohne Adresse}) laedt noch - warte"; sleep 2
 fi
 #DATEI haupt.sh
 # Stempeln: Stand lesen, Knopf waehlen, tippen (oder bewusst nicht)
@@ -188,6 +203,8 @@ fi
   echo "A_PRES=$PRES"; echo "A_LETZTE=$LETZTE"; echo "A_BUCH=$BUCH"; echo "A_PAUSE=$PAUSE"
   echo "A_WUNSCH=$WUNSCH"; echo "A_VLABEL='$V_LABEL'"; } > "$D/aktion.txt"
 t "Aktion: $AKTION - $ERGT"
+# nach einem Tipp kurz warten, bis die Buchung gespeichert ist (danach laedt die Huelle die Seite neu)
+[ "$AKTION" = tipp ] && sleep 3
 #DATEI tipp.sh
 # Knopf waehlen und tippen (oder bewusst nicht) - von haupt.sh und (zweiter Versuch) ende.sh geladen
 # braucht: STATUS + Knopf-Positionen (stand), Standort (ort), Z_ORT/Z_NAME, WUNSCH/V_LABEL (Erinnerung), ZWEIT=1 im zweiten Versuch
@@ -220,7 +237,7 @@ else
   AKTION=tipp; ERGT=$LABEL
 fi
 #DATEI ende.sh
-# Stempeln / Stand: neuen Stand lesen, Buchung pruefen, Zustand fuer den Waechter speichern, Meldung
+# Stempeln / Stand: neuen Stand lesen, Buchung pruefen, Zustand fuer den Waechter speichern, Meldung, zum Schluss die App zeigen
 # Konnte Stempeln beim ersten Lesen nicht tippen (Seite nicht bereit), wird hier auf der neu geoeffneten Seite getippt (zweiter Versuch)
 lauf
 jetzt
@@ -322,6 +339,7 @@ t "Meldung: $MELD"
 note "$MELD" "Stempeln" stempeln
 rm -f $B/lock.txt
 app_melden
+zurueck
 #DATEI waechter.sh
 # Waechter: Mo-Fr alle 5 min (07:00-19:30) - Arbeitstag? Stand + Uhrzeit -> Erinnerung oder nichts
 # Standort nur morgens bis zum Einstempeln (ab START/START2, alle 15 min): ORTLAUF=0 -> Signal "Stempel-Ort",
@@ -435,5 +453,5 @@ echo "$HEUTE" > $B/heute-nicht.txt
 rm -f $B/vorschlag.txt
 note "Heute keine Zuhause-Erinnerung mehr - im Buero erinnere ich dich wie immer" "Stempeln" heutenicht
 #DATEI VERSION
-4.5
-#ENDE 4.5
+4.6
+#ENDE 4.6

@@ -1,4 +1,4 @@
-# Stempeln / Stand: neuen Stand lesen, Buchung pruefen, Zustand fuer den Waechter speichern, Meldung
+# Stempeln / Stand: neuen Stand lesen, Buchung pruefen, Zustand fuer den Waechter speichern, Meldung, zum Schluss die App zeigen
 # Konnte Stempeln beim ersten Lesen nicht tippen (Seite nicht bereit), wird hier auf der neu geoeffneten Seite getippt (zweiter Versuch)
 lauf
 jetzt
@@ -100,3 +100,4 @@ t "Meldung: $MELD"
 note "$MELD" "Stempeln" stempeln
 rm -f $B/lock.txt
 app_melden
+zurueck
