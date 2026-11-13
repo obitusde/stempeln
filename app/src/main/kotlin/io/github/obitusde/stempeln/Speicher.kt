@@ -20,6 +20,8 @@ object Speicher {
     fun konto() = Konto.aus(lies("konto.txt"))
     fun orte() = leseOrte(lies("orte.txt"))
     fun skriptVersion() = lies("skripte/VERSION")?.trim()
+    /** Version der MacroDroid-Huellen (schreibt start.sh beim Lauf, erst ab 5.0). */
+    fun makroVersion() = lies("makro-version.txt")?.trim()?.ifEmpty { null }
     /** Einstellungen (gemeinsam mit den Skripten); fehlt die Datei, wird sie mit den heutigen Werten angelegt. */
     fun einstellungen(): Einstellungen {
         val t = lies("einstellungen.txt")

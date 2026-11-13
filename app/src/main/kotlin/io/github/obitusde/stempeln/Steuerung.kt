@@ -1,4 +1,4 @@
-// Stempeln-App v0.3.0: Steuerung - wird bei jedem Aufwachen einmal kurz durchlaufen (Wecker, Ortszone, Knopf, neuer Stand, Start)
+// Stempeln-App 5.0: Steuerung - wird bei jedem Aufwachen einmal kurz durchlaufen (Wecker, Ortszone, Knopf, neuer Stand, Start)
 package io.github.obitusde.stempeln
 
 import android.Manifest
@@ -146,6 +146,8 @@ object Steuerung {
     /** MacroDroid-Makro starten: stille Meldung "BEFEHL-STEMPELN" / "BEFEHL-STAND", auf die das Makro hoert. */
     fun makro(c: Context, befehl: String) {
         kanaele(c)
+        // gestempelt wird jetzt (Knopf in der App, Erinnerung oder Plan) -> ein geplanter Termin ist erledigt
+        if (befehl != "stand" && Speicher.plan(c) != null) { Speicher.setzePlan(c, null); planStellen(c) }
         c.getSystemService(NotificationManager::class.java).cancel(ID_ERINNERUNG)
         val text = if (befehl == "stand") "BEFEHL-STAND" else "BEFEHL-STEMPELN"
         val n = Notification.Builder(c, KANAL_BEFEHL).setSmallIcon(R.drawable.ic_stempel)

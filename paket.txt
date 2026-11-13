@@ -1,9 +1,9 @@
-#STEMPELPAKET 4.7
+#STEMPELPAKET 5.0
 # Stempel-Skripte fuer MacroDroid (Makro "Stempeln Update" packt aus). Nicht von Hand aendern.
 #DATEI kopf.sh
-# Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV)
+# Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV = gemeinsame Version von App, Skripten und Makros)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=4.7
+SKV=5.0
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0
@@ -130,7 +130,9 @@ jetzt
 echo $EPOCH > $B/lock.txt
 D=$B/lauf; rm -rf "$D"; mkdir -p "$D"; echo "$D" > $B/aktuell.txt
 L=$D/log.txt; exec 2>>"$L"
-t "$TEXT (Skripte v$SKV) - Start"
+t "$TEXT (Skripte $SKV, Makro ${MV:-alt}) - Start"
+# Version der Makro-Huelle fuer die App merken (Huellen ab 5.0 setzen MV)
+[ -n "$MV" ] && echo "$MV" > $B/makro-version.txt
 # gesperrt (z. B. geplantes Stempeln aus der App): Bildschirm wecken
 [ "$(gesperrt)" != 0 ] && input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
 n=0
@@ -467,5 +469,5 @@ echo "$HEUTE" > $B/heute-nicht.txt
 rm -f $B/vorschlag.txt
 note "Heute keine Zuhause-Erinnerung mehr - im Buero erinnere ich dich wie immer" "Stempeln" heutenicht
 #DATEI VERSION
-4.7
-#ENDE 4.7
+5.0
+#ENDE 5.0

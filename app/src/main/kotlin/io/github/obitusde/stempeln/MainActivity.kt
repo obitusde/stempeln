@@ -1,4 +1,4 @@
-// Stempeln-App: Oberflaeche v0.3.0 - Status mit Balken, Arbeitszeit (Soll / bereits / fehlt / Schluss), Pause, Ueberstunden,
+// Stempeln-App: Oberflaeche 5.0 - Status mit Balken, Arbeitszeit (Soll / bereits / fehlt / Schluss), Pause, Ueberstunden,
 // Arbeitstage bis zum Arbeitsende, grosser Knopf zeigt Ein/Aus + Ort, Planen, Urlaub, Einstellungen. Rechnet nur, solange sie offen ist.
 package io.github.obitusde.stempeln
 
@@ -34,6 +34,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 class MainActivity : Activity() {
+    companion object { const val MAKRO_NOETIG = "5.0" }   // so neu muessen die MacroDroid-Huellen sein
     private lateinit var warnungen: LinearLayout
     private lateinit var statusKarte: LinearLayout
     private lateinit var kontoKarte: LinearLayout
@@ -162,6 +163,11 @@ class MainActivity : Activity() {
                 z.status == "IN" -> { chip(k, "Eingestempelt", gruen); k.addView(text(15f, farbe = grau, t = "seit ${z.letzte}" + ortText(z.ort))) }
                 else -> { chip(k, "Ausgestempelt", orange); k.addView(text(15f, farbe = grau, t = "seit ${z.letzte}" + ortText(z.ort))) }
             }
+            val pauseText = Anzeige.pause(l)
+            val pauseLaeuft = pauseText?.startsWith("Pause läuft") == true
+            if (pauseLaeuft) k.addView(text(18f, true, Color.WHITE, pauseText!!).apply {
+                background = rund(orange, 12); setPadding(dp(12), dp(8), dp(12), dp(8)) },
+                LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(6), 0, dp(6)) })
             val g = Anzeige.tag(l)
             val voll = g.fehlt == 0
             k.addView(text(30f, true, if (voll) gruen else blau,
@@ -175,7 +181,7 @@ class MainActivity : Activity() {
             zeile(k, "Fehlt noch", if (voll) "nichts" else Anzeige.lang(g.fehlt), if (voll) gruen else dunkel, true)
             zeile(k, "Voraussichtlich Schluss", g.schluss?.let { hhmm(it) } ?: "jetzt", if (voll) gruen else blau, true)
             k.addView(text(13f, farbe = grau, t = g.hinweis))
-            Anzeige.pause(l)?.let { k.addView(text(15f, farbe = dunkel, t = it).apply { setPadding(0, dp(8), 0, 0) }) }
+            if (pauseText != null && !pauseLaeuft) k.addView(text(15f, farbe = dunkel, t = pauseText).apply { setPadding(0, dp(8), 0, 0) })
             if (u != null) k.addView(text(14f, farbe = lila, t = "Urlaub eingetragen: ${datum(u.von)} bis ${datum(u.bis)} (letzter Urlaubstag)"))
         }
         Speicher.plan(this)?.let { p -> k.addView(text(15f, true, blau, "Geplantes Stempeln um %02d:%02d".format(p.hour, p.minute))) }
@@ -206,15 +212,22 @@ class MainActivity : Activity() {
 
         infos.text = listOfNotNull(
             Speicher.naechster(this).ifEmpty { null },
-            "Skripte: " + (Speicher.skriptVersion()?.let { "v$it" } ?: "fehlen – „Skripte aktualisieren“ tippen"),
+            "Version: App ${appVersion()} · Skripte ${Speicher.skriptVersion() ?: "fehlen"} · Makros ${Speicher.makroVersion() ?: "unbekannt (noch kein Lauf mit 5.0)"}",
             "Shizuku: " + if (Steuerung.shizukuLaeuft()) "läuft" else "läuft nicht (MacroDroid kann dann nicht tippen)",
-            "App v" + packageManager.getPackageInfo(packageName, 0).versionName,
         ).joinToString("\n")
     }
+
+    private fun appVersion() = packageManager.getPackageInfo(packageName, 0).versionName ?: "?"
 
     private fun pruefeRechte() {
         warnungen.removeAllViews()
         fun warn(t: String, f: () -> Unit) = warnungen.addView(taste("⚠ $t") { f() }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(4), 0, dp(4)) })
+        // gemeinsame Version: Skripte muessen zur App passen, Makros mindestens MAKRO_NOETIG
+        val sv = Speicher.skriptVersion()
+        if (Speicher.zugriff() && sv != appVersion()) warn("Skripte ${sv ?: "fehlen"} passen nicht zur App ${appVersion()} – hier tippen zum Aktualisieren") { skripte() }
+        val mv = Speicher.makroVersion()
+        if (Speicher.zugriff() && mv != null && Aktualisieren.istNeuer(MAKRO_NOETIG, mv)) warn("Makros $mv sind zu alt – in MacroDroid „Stempeln“ und „Stempeln Stand“ $MAKRO_NOETIG aus Drive importieren") {
+            melde("Drive-Ordner „Badging Automation“: Stempeln-$MAKRO_NOETIG.macro und Stempeln-Stand-$MAKRO_NOETIG.macro in MacroDroid importieren, alte Stempel-Makros löschen") }
         if (!Speicher.zugriff()) warn("Zugriff auf alle Dateien erlauben (für Download/stempeln)") {
             startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName"))) }
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
@@ -241,6 +254,7 @@ class MainActivity : Activity() {
         val j = Steuerung.jetzt().withSecond(0).withNano(0); val heute = j.toLocalDate()
         val plan = Speicher.plan(this)
         val wahl = mutableListOf<Pair<String, () -> Unit>>("in 15 min" to { planSetzen(j.plusMinutes(15)) }, "in 30 min" to { planSetzen(j.plusMinutes(30)) },
+            "in 35 min" to { planSetzen(j.plusMinutes(35)) },
             "in 45 min" to { planSetzen(j.plusMinutes(45)) }, "in 1 h" to { planSetzen(j.plusHours(1)) },
             "um 17:00" to { planSetzen(heute.atTime(17, 0)) }, "um 17:30" to { planSetzen(heute.atTime(17, 30)) },
             "Uhrzeit wählen …" to { TimePickerDialog(this, { _, hh, mm -> planSetzen(heute.atTime(LocalTime.of(hh, mm))) }, j.hour, j.minute, true).show() })

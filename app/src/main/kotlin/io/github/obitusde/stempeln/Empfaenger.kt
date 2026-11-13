@@ -14,7 +14,7 @@ class WeckerEmpfaenger : BroadcastReceiver() {
         if (i.action == PLAN) {
             Speicher.setzePlan(c, null)
             Steuerung.makro(c, "stempeln")
-            Steuerung.hinweis(c, "Geplantes Stempeln", "Stempeln läuft – ist das Handy gesperrt, bitte entsperren.")
+            Steuerung.laufMeldung(c, "hinweis", "Geplantes Stempeln läuft – ist das Handy gesperrt, bitte entsperren.")
         }
         Steuerung.aktualisieren(c, i.action ?: "wecker")
     }
