@@ -25,7 +25,12 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
-(leer)
+1. (13.11.) Planen: zusätzlich „in 35 min“.
+2. (13.11.) Stempeln aus der App (und aus der Erinnerung) löscht einen geplanten Stempel-Termin (13.11.: um 12:54 von Hand gestempelt, Plan 13:05 lief trotzdem).
+3. (13.11.) Pause in der App auffälliger („Pause seit … min“ als eigene farbige Zeile oben) – Christof sah sie nicht.
+4. (13.11.) Nur eine Meldung: Hinweis „Geplantes Stempeln“ auf denselben Meldungsplatz (ID_LAUF) statt ID_INFO.
+5. (13.11.) Vorschlag a) „Standort von der App statt GPS“: laut MacroDroid-Log bringt es fast nichts (GPS 1,5 s, läuft parallel zur Wartezeit) – Christof fragen.
+Befund 13.11. (MacroDroid-Log): auf dem Handy laufen noch **Stempeln v4.2 / Stand v4.2** (v4.3 nie gestartet) → alte Wartezeiten (erste Prüfung erst nach ~22 s) und „Startbildschirm“ am Ende (App kommt nicht nach vorn). v4.3 importieren + v4.2 löschen.
 
 Umgesetzt 12.11. abends (Christof: „Bauen“) – App v0.3.0 + Skripte v4.7, **kein Makro-Import**:
 - **Einstellungen** (Knopf „Einstellungen“): Datei `Download/stempeln/einstellungen.txt` (`logik/Einstellungen.kt`, `E_SOLL='2000-01-01=08:25,…'` mit „gültig ab“, `E_ENDE`, `E_PAUSE_KURZ/SS`, `E_HO_TAGE` (ISO-Ziffern, 25 = Di+Fr), `E_START_HO/BUERO`, `E_MITTAG`, `E_WDH`, `E_ABEND`); App legt sie mit den heutigen Werten an; Wächter/Anzeige nehmen `Lage.e`; Skripte laden sie in `kopf.sh` (`soll_am`, `pause_fuer`).
