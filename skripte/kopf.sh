@@ -1,6 +1,6 @@
 # Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV = gemeinsame Version von App, Skripten und Makros)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=5.0
+SKV=5.1
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0

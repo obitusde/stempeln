@@ -1,6 +1,6 @@
 # Stempeln — Projektstand für Claude
 
-**Stand 13.11.2026** · **Gemeinsame Version 5.0**: App (`app/`, `logik/`) 5.0 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.0 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 · Workflow `.github/workflows/app.yml` v1.0.0
+**Stand 13.11.2026** · **Gemeinsame Version 5.1**: App (`app/`, `logik/`) 5.1 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.1 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 (unverändert, `MAKRO_NOETIG` 5.0) · Workflow `.github/workflows/app.yml` v1.0.0
 
 ## 1. Nutzer und Arbeitsweise (unbedingt beachten)
 - **Christof** (GitHub `obitusde`), Pixel 8 (Android 17), MacroDroid Pro + Shizuku. Will so wenig wie möglich selbst machen, kein Terminal.
@@ -28,6 +28,11 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
 (leer)
 
+Umgesetzt 13.11. (Christof: „Neue version“) – **5.1** (App + Skripte, Skripte nur Nummer):
+- Farbiges **Status-Band** ganz oben: EINGESTEMPELT (grün), PAUSE (orange, seit … min / vorbei um …), AUSGESTEMPELT (rot), FEIERABEND (dunkelgrün), NOCH NICHT EINGESTEMPELT (blaugrau), URLAUB (lila), FREI (grau).
+- **Plan** als hellblaue Zeile oben mit rotem Knopf „Plan löschen“.
+- Alte Makros (Wächter, Spaeter, Frei, Heute nicht, v4.x) können weg; „Stempeln Update“ nur ausschalten (enthält Orte).
+
 Umgesetzt 13.11. (Christof: „a, bauen“) – **5.0** (App, Skripte, Makros):
 - Gemeinsame Version (siehe 1.), Makros umbenannt „Stempeln“ / „Stempeln Stand“ (GUID 744110150000 / 744110160000, sonst = v4.3-Hülle), App zeigt „Version: App · Skripte · Makros“ + Warnknöpfe.
 - Planen „in 35 min“; jedes Stempeln (App-Knopf, Erinnerung, Plan) löscht den Plan (`Steuerung.makro`); Pause läuft = orange Zeile oben; Plan-Hinweis auf derselben Meldung (ID_LAUF).
@@ -46,6 +51,7 @@ Umgesetzt 12.11. (Christof: „Setze das alles jetzt um“):
 - App v0.2.0: Status mit Fortschrittsbalken, Zeilen Arbeitszeit Soll / Bereits gearbeitet / Fehlt noch / Voraussichtlich Schluss (+ Erklärung, `logik/Anzeige.kt`, Pause 30/45 min eingerechnet), „Überstunden“ (= Saldo bis gestern) mit Arbeitstagen zu 8 h 25; Heures du jour, Rattrapage (= Urlaubs-Ansparminuten, egal), HS ausgeblendet; Planen +15/+30/+45 min/+1 h/17:00/17:30/Uhrzeit, Knopf „Zurück“; Urlaub: erster + **letzter Urlaubstag** mit Hinweis, Status zeigt Urlaub und „geht wieder los am …“; Meldungen verschwinden nach 60 s; Umlaute; Inhalt nicht mehr unter der Statusleiste.
 
 ## 4. Offen / zu testen (Pixel)
+00000. 5.1 (13.11.): App aktualisieren + Skripte aktualisieren (kein Makro-Import). Status-Band und „Plan löschen“ prüfen.
 0000. 5.0 (13.11.): App aktualisieren, Skripte aktualisieren, Makros „Stempeln-5.0“ + „Stempeln-Stand-5.0“ importieren, alle alten Stempel-Makros löschen. Prüfen: Dauer (~15–25 s?), App kommt zurück, eine Meldung, Plan verschwindet nach Stempeln, Pause orange, unten „Version: App 5.0 · Skripte 5.0 · Makros 5.0“.
 000. v0.3.0 / v4.7 (12.11.): App aktualisieren (Knopf), dann Skripte aktualisieren, Einstellungen prüfen. Prüfen: Ton „geklappt“/„Problem“ kommt, keine doppelte Meldung (sonst liefert `am broadcast` kein result=7 → Rückfall), Knopf-Text, Pause, Zähler 395.
 00. ✅ 12.11.2026 „Klappt alles“: v0.2.1 / v4.6 / v4.3: Secrets gesetzt, v0.2.1 = erste fest signierte Version → einmal alte App deinstallieren, v0.2.1 installieren, Rechte neu (danach Updates per Knopf), Skripte aktualisieren, Makros v4.3 importieren, v4.2 löschen. Prüfen: Startseite wird schnell erkannt? App kommt nach Stempeln/Stand zurück? Anzeige verständlich?

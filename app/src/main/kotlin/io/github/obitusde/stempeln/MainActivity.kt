@@ -1,4 +1,4 @@
-// Stempeln-App: Oberflaeche 5.0 - Status mit Balken, Arbeitszeit (Soll / bereits / fehlt / Schluss), Pause, Ueberstunden,
+// Stempeln-App: Oberflaeche 5.1 - farbiges Status-Band oben, Plan mit Knopf "Plan löschen"; Status mit Balken, Arbeitszeit (Soll / bereits / fehlt / Schluss), Pause, Ueberstunden,
 // Arbeitstage bis zum Arbeitsende, grosser Knopf zeigt Ein/Aus + Ort, Planen, Urlaub, Einstellungen. Rechnet nur, solange sie offen ist.
 package io.github.obitusde.stempeln
 
@@ -37,6 +37,8 @@ class MainActivity : Activity() {
     companion object { const val MAKRO_NOETIG = "5.0" }   // so neu muessen die MacroDroid-Huellen sein
     private lateinit var warnungen: LinearLayout
     private lateinit var statusKarte: LinearLayout
+    private lateinit var band: LinearLayout
+    private lateinit var planZeile: LinearLayout
     private lateinit var kontoKarte: LinearLayout
     private lateinit var zaehlerKarte: LinearLayout
     private lateinit var stempelTaste: Button
@@ -84,6 +86,15 @@ class MainActivity : Activity() {
         background = rund(farbe, 12); setPadding(dp(10), dp(3), dp(10), dp(3))
     }, LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(6) })
 
+    /** Grosses farbiges Status-Band oben (z. B. EINGESTEMPELT gruen, PAUSE orange). */
+    private fun zeigeBand(titel: String, unter: String, farbe: Int) {
+        band.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; background = rund(farbe, 16); setPadding(dp(18), dp(14), dp(18), dp(14))
+            addView(text(24f, true, Color.WHITE, titel))
+            addView(text(16f, false, Color.WHITE, unter))
+        }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(6), 0, dp(4)) })
+    }
+
     private val wt = arrayOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So")
     private fun datum(d: LocalDate) = "${wt[d.dayOfWeek.value - 1]} ${d.dayOfMonth}.${d.monthValue}."
     private fun datumJahr(d: LocalDate) = datum(d) + d.year
@@ -94,13 +105,15 @@ class MainActivity : Activity() {
         Steuerung.kanaele(this)
         warnungen = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         statusKarte = karte(); kontoKarte = karte(); zaehlerKarte = karte()
+        band = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        planZeile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         stempelTaste = taste("Stempeln", true) { befehl("stempeln") }
         meldung = text(15f, farbe = blau).apply { visibility = View.GONE; setPadding(dp(4), dp(6), dp(4), dp(6)) }
         infos = text(13f, farbe = grau)
         val inhalt = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(20), dp(16), dp(28))
             addView(text(26f, true, blau, "Stempeln"))
-            addView(warnungen); addView(statusKarte)
+            addView(warnungen); addView(band); addView(planZeile); addView(statusKarte)
             addView(stempelTaste, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(4), 0, dp(4)) })
             addView(paar(taste("Stand lesen") { befehl("stand") }, taste("Planen") { planen() }))
             addView(paar(taste("Urlaub") { urlaub() }, taste("Einstellungen") { einstellungen() }))
@@ -138,7 +151,7 @@ class MainActivity : Activity() {
 
     private fun zeigen() {
         pruefeRechte()
-        statusKarte.removeAllViews(); kontoKarte.removeAllViews(); zaehlerKarte.removeAllViews()
+        statusKarte.removeAllViews(); kontoKarte.removeAllViews(); zaehlerKarte.removeAllViews(); band.removeAllViews(); planZeile.removeAllViews()
         if (!Speicher.zugriff()) { statusKarte.addView(text(18f, true, t = "Zugriff auf Dateien fehlt (oben erlauben)")); infos.text = ""; return }
         val l = Steuerung.lage(this)
         val se = l.e
@@ -150,26 +163,25 @@ class MainActivity : Activity() {
         val ortText = { t: String? -> if (t.isNullOrEmpty()) "" else " · " + knopf(t) }
 
         if (z.buch == 0 && u != null && u.umfasst(heute)) {
-            chip(k, "Urlaub", lila)
-            k.addView(text(24f, true, t = "Urlaub bis ${datum(u.bis)}"))
-            k.addView(text(15f, farbe = grau, t = "${datum(u.bis)} ist dein letzter Urlaubstag. Am ${datum(wiederLos(u))} geht es wieder los – bis dahin ruht alles."))
+            zeigeBand("URLAUB", "bis ${datum(u.bis)} (letzter Urlaubstag) · am ${datum(wiederLos(u))} geht es wieder los", lila)
+            k.addView(text(15f, farbe = grau, t = "Bis dahin ruht alles: keine Erinnerungen, kein Standort."))
         } else if (z.buch == 0 && !Waechter.istArbeitstag(heute, u)) {
-            chip(k, "Frei", grau)
-            k.addView(text(22f, true, t = "Heute kein Arbeitstag"))
-            k.addView(text(15f, farbe = grau, t = "Nächster Arbeitstag: ${datum(Waechter.naechsterStart(heute, u, se).toLocalDate())}"))
+            zeigeBand("FREI", "heute kein Arbeitstag · nächster: ${datum(Waechter.naechsterStart(heute, u, se).toLocalDate())}", grau)
+            k.addView(text(15f, farbe = grau, t = "Heute passiert nichts."))
         } else {
-            when {
-                z.buch == 0 -> { chip(k, "Noch nicht eingestempelt", grau); Steuerung.aktuelleZone(this)?.let { k.addView(text(15f, farbe = grau, t = "Ort: " + knopf(it))) } }
-                z.status == "IN" -> { chip(k, "Eingestempelt", gruen); k.addView(text(15f, farbe = grau, t = "seit ${z.letzte}" + ortText(z.ort))) }
-                else -> { chip(k, "Ausgestempelt", orange); k.addView(text(15f, farbe = grau, t = "seit ${z.letzte}" + ortText(z.ort))) }
-            }
-            val pauseText = Anzeige.pause(l)
-            val pauseLaeuft = pauseText?.startsWith("Pause läuft") == true
-            if (pauseLaeuft) k.addView(text(18f, true, Color.WHITE, pauseText!!).apply {
-                background = rund(orange, 12); setPadding(dp(12), dp(8), dp(12), dp(8)) },
-                LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(6), 0, dp(6)) })
             val g = Anzeige.tag(l)
             val voll = g.fehlt == 0
+            val pauseText = Anzeige.pause(l)
+            val pauseLaeuft = pauseText?.startsWith("Pause läuft") == true
+            when {
+                z.buch == 0 -> zeigeBand("NOCH NICHT EINGESTEMPELT",
+                    Steuerung.aktuelleZone(this)?.let { "Ort: " + knopf(it) } ?: "Erinnerung ab ${hhmm(se.start(heute))}", 0xFF546E7A.toInt())
+                z.status == "IN" -> zeigeBand("EINGESTEMPELT", "seit ${z.letzte}" + ortText(z.ort) +
+                    if (voll) " · Soll erreicht" else " · noch ${Anzeige.lang(g.fehlt)}", gruen)
+                pauseLaeuft -> zeigeBand("PAUSE", pauseText!!.removePrefix("Pause läuft "), orange)
+                voll -> zeigeBand("FEIERABEND", "ausgestempelt um ${z.letzte}" + ortText(z.ort) + if (g.mehr > 0) " · +${Anzeige.lang(g.mehr)}" else "", 0xFF0B6B2B.toInt())
+                else -> zeigeBand("AUSGESTEMPELT", "seit ${z.letzte}" + ortText(z.ort) + " · noch ${Anzeige.lang(g.fehlt)} offen", 0xFFC62828.toInt())
+            }
             k.addView(text(30f, true, if (voll) gruen else blau,
                 if (voll) "Soll erreicht" + (if (g.mehr > 0) " (+${Anzeige.lang(g.mehr)})" else "") else "noch ${Anzeige.lang(g.fehlt)}"))
             k.addView(Balken(this).apply { anteil = g.bereits.toFloat() / g.soll; farbe = if (voll) gruen else if (z.status == "IN") blau else 0xFF8AA6E0.toInt() },
@@ -184,7 +196,18 @@ class MainActivity : Activity() {
             if (pauseText != null && !pauseLaeuft) k.addView(text(15f, farbe = dunkel, t = pauseText).apply { setPadding(0, dp(8), 0, 0) })
             if (u != null) k.addView(text(14f, farbe = lila, t = "Urlaub eingetragen: ${datum(u.von)} bis ${datum(u.bis)} (letzter Urlaubstag)"))
         }
-        Speicher.plan(this)?.let { p -> k.addView(text(15f, true, blau, "Geplantes Stempeln um %02d:%02d".format(p.hour, p.minute))) }
+        // geplantes Stempeln: gut sichtbar oben, mit Knopf zum Loeschen
+        Speicher.plan(this)?.let { p ->
+            planZeile.addView(LinearLayout(this).apply {
+                gravity = Gravity.CENTER_VERTICAL; background = rund(0xFFDCE6FA.toInt(), 14); setPadding(dp(14), dp(6), dp(6), dp(6))
+                addView(text(16f, true, blau, "⏰ Geplantes Stempeln um %02d:%02d".format(p.hour, p.minute)), LinearLayout.LayoutParams(0, -2, 1f))
+                addView(Button(this@MainActivity).apply {
+                    text = "Plan löschen"; isAllCaps = false; textSize = 15f; stateListAnimator = null; setTextColor(Color.WHITE)
+                    background = RippleDrawable(ColorStateList.valueOf(0x33000000), rund(0xFFC62828.toInt(), 12), null)
+                    setOnClickListener { Speicher.setzePlan(this@MainActivity, null); Steuerung.planStellen(this@MainActivity); melde("Plan gelöscht – es wird nicht automatisch gestempelt"); zeigen() }
+                })
+            }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(4), 0, dp(6)) })
+        }
 
         // Ueberstunden (Saldo der Stempelseite, bis gestern)
         val kk = kontoKarte
