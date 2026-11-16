@@ -28,6 +28,7 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
 1. (16.11.) Hinweis „wenn du durcharbeitest“ unter „Voraussichtlich Schluss“ weglassen.
 2. (16.11.) Pause als Tabellenzeile mit Minuten rechtsbündig (z. B. „Pause gemacht ……… 36 min“, „Pause geplant ……… 45 min“).
+3. (16.11.) Zeile „Angefangen um 07:48“ (erste Buchung des Tages). Braucht neues Feld `Z_ERSTE` in zustand.txt (ende.sh: erste Zeit aus `ZEITEN`; bei angenommenem Stand ohne Nachlesen alten Wert behalten bzw. Tippzeit) → Skripte + App.
 
 Umgesetzt 16.11. (Christof: „c … jetzt bauen“) – **5.2** (App + Skripte, kein Makro-Import):
 - **Handy-Ansicht** („n'est pas optimisée“, Ursache 16.11.: Android-Desktop-Modus, nur Chrome-Neustart half): `seite_art` → `SEITE=mobil`; `pruef.sh` beendet einmal pro Lauf Chrome (`am force-stop com.android.chrome`, Merker `lauf/chrome-neu.txt`) und öffnet die Seite neu; bleibt es so → ⚠-Meldung „Beenden erzwingen“ (ende.sh).
