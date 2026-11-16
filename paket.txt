@@ -1,9 +1,9 @@
-#STEMPELPAKET 5.2
+#STEMPELPAKET 5.3
 # Stempel-Skripte fuer MacroDroid (Makro "Stempeln Update" packt aus). Nicht von Hand aendern.
 #DATEI kopf.sh
 # Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV = gemeinsame Version von App, Skripten und Makros)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=5.2
+SKV=5.3
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0
@@ -84,7 +84,7 @@ elemente() { x=""; y=""
       "-- [text]: "*) s=${z#*\]: }; [ -n "$s" ] && echo "$x|$y|$s" ;;
     esac
   done < "$1"; }
-# Stand aus Elementliste $1: STATUS (IN/OUT/?), PRES (Minuten, leer = nicht gelesen), LETZTE, BUCH, PAUSE, Knopf-Positionen
+# Stand aus Elementliste $1: STATUS (IN/OUT/?), PRES (Minuten, leer = nicht gelesen), LETZTE, LISTE (alle Buchungen), BUCH, PAUSE, Knopf-Positionen
 # AGENDA=1 nur wenn die Agenda fertig geladen ist (Stundenzahl 23:00 in der Agenda-Spalte) - sonst ist der Knopf-Text unzuverlaessig
 stand() { STATUS="?"; HOT=""; PRES=""; AGENDA=0; K_SOLDE=""; K_JOUR=""; K_RATT=""; K_HS=""; HOX=113; HOY=436; SSX=70; SSY=567; HUX=172; HUY=567; ZEITEN=""
   while IFS='|' read -r x y s; do
@@ -109,10 +109,10 @@ stand() { STATUS="?"; HOT=""; PRES=""; AGENDA=0; K_SOLDE=""; K_JOUR=""; K_RATT="
   done < "$1"
   # halb geladen: Knopf/Zeiten nicht verwenden
   HALB=0; [ $AGENDA = 1 ] || { [ -n "$HOT" ] && HALB=1; STATUS="?"; PRES=""; ZEITEN=""; K_SOLDE=""; K_JOUR=""; K_RATT=""; K_HS=""; }
-  LETZTE=""; BUCH=0; PAUSE=0; aus=""
+  LETZTE=""; BUCH=0; PAUSE=0; aus=""; LISTE=""
   # Zeiten abwechselnd rein/raus; Luecken nach einem Ausstempeln 11:00-14:30 = Mittagspause
   for s in $(for s in $ZEITEN; do echo $s; done | sort -u); do
-    LETZTE=$s; BUCH=$(( BUCH + 1 )); m=$(minuten $s)
+    LETZTE=$s; LISTE="$LISTE $s"; BUCH=$(( BUCH + 1 )); m=$(minuten $s)
     if [ $(( BUCH % 2 )) = 0 ]; then aus=$m
     elif [ -n "$aus" ]; then [ $aus -ge 660 ] && [ $aus -le 870 ] && PAUSE=$(( PAUSE + m - aus )); aus=""; fi
   done; }
@@ -229,7 +229,7 @@ else
   ZWEIT=0; . $S/tipp.sh
 fi
 { echo "A_AKTION=$AKTION"; echo "A_STATUS=$STATUS"; echo "A_TYP=$KTYP"; echo "A_NAME='$KNAME'"; echo "A_TEXT='$ERGT'"; echo "A_KORR=$KORR"
-  echo "A_PRES=$PRES"; echo "A_LETZTE=$LETZTE"; echo "A_BUCH=$BUCH"; echo "A_PAUSE=$PAUSE"
+  echo "A_PRES=$PRES"; echo "A_LETZTE=$LETZTE"; echo "A_BUCH=$BUCH"; echo "A_PAUSE=$PAUSE"; echo "A_LISTE='$LISTE'"
   echo "A_WUNSCH=$WUNSCH"; echo "A_VLABEL='$V_LABEL'"; } > "$D/aktion.txt"
 t "Aktion: $AKTION - $ERGT"
 # nach einem Tipp kurz warten, bis die Buchung gespeichert ist (danach laedt die Huelle die Seite neu)
@@ -276,7 +276,7 @@ stand "$D/elemente-nach.txt"
 seite_art "$D/seite-nach.txt"
 [ "$SEITE" = clock ] || { STATUS="?"; PRES=""; }
 t "Seite nachher: $SEITE ($U) Status=$STATUS Praesenz=$PRES Letzte=$LETZTE Buchungen=$BUCH Pause=$PAUSE Agenda=$AGENDA"
-A_AKTION=keine; A_STATUS="?"; A_TYP=""; A_NAME=""; A_TEXT=""; A_KORR=""; A_PRES=""; A_LETZTE=""; A_BUCH=0; A_PAUSE=0; A_WUNSCH=""; A_VLABEL=""
+A_AKTION=keine; A_STATUS="?"; A_TYP=""; A_NAME=""; A_TEXT=""; A_KORR=""; A_PRES=""; A_LETZTE=""; A_BUCH=0; A_PAUSE=0; A_WUNSCH=""; A_VLABEL=""; A_LISTE=""
 [ -f "$D/aktion.txt" ] && . "$D/aktion.txt"
 Z_DATUM=""; Z_ORT=""; Z_NAME=""; [ -f $B/zustand.txt ] && . $B/zustand.txt
 [ "$Z_DATUM" = "$HEUTE" ] || { Z_ORT=""; Z_NAME=""; }
@@ -292,7 +292,7 @@ if [ "$A_AKTION" = nochmal ]; then
     . $S/tipp.sh
     A_AKTION=$AKTION; A_TEXT=$ERGT; A_KORR=$KORR; A_TYP=$KTYP; A_NAME=$KNAME
     if [ "$AKTION" = tipp ]; then
-      A_STATUS=$STATUS; A_PRES=$PRES; A_LETZTE=$LETZTE; A_BUCH=$BUCH; A_PAUSE=$PAUSE
+      A_STATUS=$STATUS; A_PRES=$PRES; A_LETZTE=$LETZTE; A_BUCH=$BUCH; A_PAUSE=$PAUSE; A_LISTE=$LISTE
       VERM="Stempelseite kam erst beim zweiten Oeffnen"; GUT=0
       sleep 3
     fi
@@ -308,7 +308,7 @@ if [ $GUT = 0 ] && [ "$A_AKTION" = tipp ] && [ -n "$A_PRES" ]; then
     elif [ "$HALB" = 1 ]; then VERM="Seite nicht fertig geladen"
     else VERM="Seite nicht gelesen"; fi
   fi
-  PRES=$A_PRES; LETZTE=$(hm $NOW); BUCH=$(( A_BUCH + 1 )); PAUSE=$A_PAUSE
+  PRES=$A_PRES; LETZTE=$(hm $NOW); LISTE="$A_LISTE $LETZTE"; BUCH=$(( A_BUCH + 1 )); PAUSE=$A_PAUSE
   if [ "$A_STATUS" = IN ]; then STATUS=OUT
   else STATUS=IN; la=$(minuten "${A_LETZTE:-0:00}")
     [ $la -ge 660 ] && [ $la -le 870 ] && [ $NOW -gt $la ] && PAUSE=$(( PAUSE + NOW - la )); fi
@@ -322,7 +322,7 @@ if [ -n "$PRES" ] && [ "$STATUS" != "?" ]; then
     *) if [ -z "$Z_ORT" ] && [ "$STATUS" = IN ]; then wahl EIN; Z_ORT=$KTYP; Z_NAME=$KNAME; fi ;;
   esac
   { echo "Z_DATUM=$HEUTE"; echo "Z_STATUS=$STATUS"; echo "Z_PRES=$PRES"; echo "Z_LESE=$EPOCH"; echo "Z_LETZTE=$LETZTE"; echo "Z_BUCH=$BUCH"
-    echo "Z_ORT=$Z_ORT"; echo "Z_NAME='$Z_NAME'"; echo "Z_PAUSE=$PAUSE"; } > $B/zustand.txt
+    echo "Z_ORT=$Z_ORT"; echo "Z_NAME='$Z_NAME'"; echo "Z_PAUSE=$PAUSE"; echo "Z_ZEITEN='${LISTE# }'"; } > $B/zustand.txt
   ZL=""; [ -n "$Z_ORT" ] && ZL=" - $(label "$Z_ORT")"
   REST=$(( SOLL - PRES ))
   if [ "$STATUS" = IN ]; then
@@ -486,5 +486,5 @@ echo "$HEUTE" > $B/heute-nicht.txt
 rm -f $B/vorschlag.txt
 note "Heute keine Zuhause-Erinnerung mehr - im Buero erinnere ich dich wie immer" "Stempeln" heutenicht
 #DATEI VERSION
-5.2
-#ENDE 5.2
+5.3
+#ENDE 5.3

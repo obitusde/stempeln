@@ -1,6 +1,6 @@
 # Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV = gemeinsame Version von App, Skripten und Makros)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=5.2
+SKV=5.3
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0
@@ -81,7 +81,7 @@ elemente() { x=""; y=""
       "-- [text]: "*) s=${z#*\]: }; [ -n "$s" ] && echo "$x|$y|$s" ;;
     esac
   done < "$1"; }
-# Stand aus Elementliste $1: STATUS (IN/OUT/?), PRES (Minuten, leer = nicht gelesen), LETZTE, BUCH, PAUSE, Knopf-Positionen
+# Stand aus Elementliste $1: STATUS (IN/OUT/?), PRES (Minuten, leer = nicht gelesen), LETZTE, LISTE (alle Buchungen), BUCH, PAUSE, Knopf-Positionen
 # AGENDA=1 nur wenn die Agenda fertig geladen ist (Stundenzahl 23:00 in der Agenda-Spalte) - sonst ist der Knopf-Text unzuverlaessig
 stand() { STATUS="?"; HOT=""; PRES=""; AGENDA=0; K_SOLDE=""; K_JOUR=""; K_RATT=""; K_HS=""; HOX=113; HOY=436; SSX=70; SSY=567; HUX=172; HUY=567; ZEITEN=""
   while IFS='|' read -r x y s; do
@@ -106,10 +106,10 @@ stand() { STATUS="?"; HOT=""; PRES=""; AGENDA=0; K_SOLDE=""; K_JOUR=""; K_RATT="
   done < "$1"
   # halb geladen: Knopf/Zeiten nicht verwenden
   HALB=0; [ $AGENDA = 1 ] || { [ -n "$HOT" ] && HALB=1; STATUS="?"; PRES=""; ZEITEN=""; K_SOLDE=""; K_JOUR=""; K_RATT=""; K_HS=""; }
-  LETZTE=""; BUCH=0; PAUSE=0; aus=""
+  LETZTE=""; BUCH=0; PAUSE=0; aus=""; LISTE=""
   # Zeiten abwechselnd rein/raus; Luecken nach einem Ausstempeln 11:00-14:30 = Mittagspause
   for s in $(for s in $ZEITEN; do echo $s; done | sort -u); do
-    LETZTE=$s; BUCH=$(( BUCH + 1 )); m=$(minuten $s)
+    LETZTE=$s; LISTE="$LISTE $s"; BUCH=$(( BUCH + 1 )); m=$(minuten $s)
     if [ $(( BUCH % 2 )) = 0 ]; then aus=$m
     elif [ -n "$aus" ]; then [ $aus -ge 660 ] && [ $aus -le 870 ] && PAUSE=$(( PAUSE + m - aus )); aus=""; fi
   done; }

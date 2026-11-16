@@ -93,5 +93,21 @@ class AnzeigeTest {
         assertEquals("Soll voll", w.erinnerung!!.grund)
     }
 
+    @Test fun anfang_pause_buchungen() {
+        val z = Zustand.aus("Z_DATUM=2026-11-16\nZ_STATUS=IN\nZ_PRES=300\nZ_LESE=${ep(t("2026-11-16", "16:00"))}\nZ_LETZTE=12:39\nZ_BUCH=3\nZ_ORT=SS\nZ_PAUSE=36\nZ_ZEITEN='7:59 12:03 12:39'\n")
+        val l = lage("2026-11-16", "16:00", z)
+        assertEquals(479, Anzeige.angefangen(l))
+        assertEquals("Pause gemacht" to "36 min (12:03–12:39)", Anzeige.pauseZeile(l))
+        assertEquals("07:59 – 12:03 · 12:39 – jetzt", Anzeige.buchungen(l))
+        val aus = Zustand(LocalDate.parse("2026-11-16"), "OUT", 240, 1, "12:03", 2, "SS", "", 0, listOf(479, 723))
+        assertEquals("Pause läuft" to "seit 10 min, bis 12:48", Anzeige.pauseZeile(lage("2026-11-16", "12:13", aus)))
+        assertEquals("07:59 – 12:03", Anzeige.buchungen(lage("2026-11-16", "12:13", aus)))
+        val morgen = Zustand(LocalDate.parse("2026-11-16"), "IN", 60, ep(t("2026-11-16", "09:00")), "08:00", 1, "HO", "", 0, listOf(480))
+        assertEquals("Pause geplant" to "30 min", Anzeige.pauseZeile(lage("2026-11-16", "09:00", morgen)))
+        // alte Skripte ohne Z_ZEITEN: Anfang aus der einzigen Buchung
+        val alt = Zustand(LocalDate.parse("2026-11-16"), "IN", 60, ep(t("2026-11-16", "09:00")), "08:00", 1, "HO", "")
+        assertEquals(480, Anzeige.angefangen(lage("2026-11-16", "09:00", alt)))
+    }
+
     private fun hhmmZuMin(s: String) = minutenOderNull(s)!!
 }

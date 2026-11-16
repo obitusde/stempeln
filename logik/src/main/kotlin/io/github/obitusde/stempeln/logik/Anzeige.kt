@@ -1,5 +1,5 @@
 // Stempeln-Logik: was die App ueber den Tag anzeigt (Soll, bereits, fehlt, Schluss, Pause, naechstes Stempeln,
-// Arbeitstage bis zum Arbeitsende, Ueberstunden) - v0.3.0
+// Arbeitstage bis zum Arbeitsende, Ueberstunden, Anfang, Pausen, Buchungen) - 5.3
 package io.github.obitusde.stempeln.logik
 
 import java.time.DayOfWeek
@@ -72,6 +72,46 @@ object Anzeige {
             pauseOffen(z, now) -> "Pause geplant: $geplant min (Erinnerung um ${hhmm(l.e.mittag)})"
             else -> null
         }
+    }
+
+    /** Erste Buchung des Tages (Minute) oder null. */
+    fun angefangen(l: Lage): Int? {
+        val z = Waechter.heute(l)
+        return z.zeiten.firstOrNull() ?: if (z.buch == 1) minutenOderNull(z.letzte) else null
+    }
+
+    /** Pausen des Tages: (aus, ein) je fertige Pause, aus den Buchungen. */
+    fun pausen(l: Lage): List<Pair<Int, Int>> {
+        val t = Waechter.heute(l).zeiten
+        return (1 until t.size step 2).mapNotNull { i -> t.getOrNull(i + 1)?.let { t[i] to it } }
+    }
+
+    /** Tabellenzeile Pause: Bezeichnung + Wert (null = nichts zu zeigen). */
+    fun pauseZeile(l: Lage): Pair<String, String>? {
+        val z = Waechter.heute(l)
+        val now = l.jetzt.hour * 60 + l.jetzt.minute
+        val d = l.jetzt.toLocalDate()
+        val lz = minutenOderNull(z.letzte)
+        val geplant = l.e.pause(if (z.buch == 0) (l.zone ?: if (l.e.istHoTag(d)) "HO" else "SS") else z.ort)
+        val fertig = Waechter.praesenz(l) >= l.e.sollAm(d)
+        val p = pausen(l)
+        val gemacht = if (p.isNotEmpty()) p.sumOf { it.second - it.first } else z.pause.coerceAtLeast(0)
+        val wann = if (p.size == 1) " (${hhmm(p[0].first)}–${hhmm(p[0].second)})" else ""
+        return when {
+            z.status != "IN" && z.buch > 0 && lz != null && lz in Regeln.ORTBIS..Regeln.MITTAG_ENDE && !fertig ->
+                "Pause läuft" to "seit ${now - lz} min" + (if (now - lz < geplant) ", bis ${hhmm(lz + geplant)}" else "")
+            gemacht > 0 -> "Pause gemacht" to "${Anzeige.lang(gemacht)}$wann"
+            z.status != "IN" && z.buch > 0 -> null
+            pauseOffen(z, now) -> "Pause geplant" to Anzeige.lang(geplant)
+            else -> null
+        }
+    }
+
+    /** Buchungen als Zeile: "07:48 – 11:35 · 12:10 – jetzt" (leer = unbekannt). */
+    fun buchungen(l: Lage): String {
+        val z = Waechter.heute(l); val t = z.zeiten
+        if (t.isEmpty()) return ""
+        return t.chunked(2).joinToString(" · ") { s -> hhmm(s[0]) + " – " + (s.getOrNull(1)?.let { hhmm(it) } ?: if (z.status == "IN") "jetzt" else "?") }
     }
 
     /** Was der grosse Knopf tut. ortName = Name der Ortszone, in der du gerade bist (morgens). */

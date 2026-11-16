@@ -38,6 +38,7 @@ data class Zustand(
     val datum: LocalDate?, val status: String, val pres: Int, val lese: Long,
     val letzte: String, val buch: Int, val ort: String, val name: String,
     val pause: Int = -1,   // Mittagspause heute schon gemacht (min), -1 = unbekannt (alte Skripte)
+    val zeiten: List<Int> = emptyList(),   // alle Buchungen des Tages (Minuten), aufsteigend; leer = unbekannt (alte Skripte)
 ) {
     companion object {
         val LEER = Zustand(null, "OUT", 0, 0, "", 0, "", "", 0)
@@ -48,6 +49,7 @@ data class Zustand(
                 datumOderNull(m["Z_DATUM"]), m["Z_STATUS"] ?: "OUT", m["Z_PRES"]?.toIntOrNull() ?: 0,
                 m["Z_LESE"]?.toLongOrNull() ?: 0, m["Z_LETZTE"] ?: "", m["Z_BUCH"]?.toIntOrNull() ?: 0,
                 m["Z_ORT"] ?: "", m["Z_NAME"] ?: "", m["Z_PAUSE"]?.toIntOrNull() ?: -1,
+                (m["Z_ZEITEN"] ?: "").split(' ').mapNotNull { minutenOderNull(it) }.sorted(),
             )
         }
     }

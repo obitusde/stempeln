@@ -8,7 +8,7 @@ stand "$D/elemente-nach.txt"
 seite_art "$D/seite-nach.txt"
 [ "$SEITE" = clock ] || { STATUS="?"; PRES=""; }
 t "Seite nachher: $SEITE ($U) Status=$STATUS Praesenz=$PRES Letzte=$LETZTE Buchungen=$BUCH Pause=$PAUSE Agenda=$AGENDA"
-A_AKTION=keine; A_STATUS="?"; A_TYP=""; A_NAME=""; A_TEXT=""; A_KORR=""; A_PRES=""; A_LETZTE=""; A_BUCH=0; A_PAUSE=0; A_WUNSCH=""; A_VLABEL=""
+A_AKTION=keine; A_STATUS="?"; A_TYP=""; A_NAME=""; A_TEXT=""; A_KORR=""; A_PRES=""; A_LETZTE=""; A_BUCH=0; A_PAUSE=0; A_WUNSCH=""; A_VLABEL=""; A_LISTE=""
 [ -f "$D/aktion.txt" ] && . "$D/aktion.txt"
 Z_DATUM=""; Z_ORT=""; Z_NAME=""; [ -f $B/zustand.txt ] && . $B/zustand.txt
 [ "$Z_DATUM" = "$HEUTE" ] || { Z_ORT=""; Z_NAME=""; }
@@ -24,7 +24,7 @@ if [ "$A_AKTION" = nochmal ]; then
     . $S/tipp.sh
     A_AKTION=$AKTION; A_TEXT=$ERGT; A_KORR=$KORR; A_TYP=$KTYP; A_NAME=$KNAME
     if [ "$AKTION" = tipp ]; then
-      A_STATUS=$STATUS; A_PRES=$PRES; A_LETZTE=$LETZTE; A_BUCH=$BUCH; A_PAUSE=$PAUSE
+      A_STATUS=$STATUS; A_PRES=$PRES; A_LETZTE=$LETZTE; A_BUCH=$BUCH; A_PAUSE=$PAUSE; A_LISTE=$LISTE
       VERM="Stempelseite kam erst beim zweiten Oeffnen"; GUT=0
       sleep 3
     fi
@@ -40,7 +40,7 @@ if [ $GUT = 0 ] && [ "$A_AKTION" = tipp ] && [ -n "$A_PRES" ]; then
     elif [ "$HALB" = 1 ]; then VERM="Seite nicht fertig geladen"
     else VERM="Seite nicht gelesen"; fi
   fi
-  PRES=$A_PRES; LETZTE=$(hm $NOW); BUCH=$(( A_BUCH + 1 )); PAUSE=$A_PAUSE
+  PRES=$A_PRES; LETZTE=$(hm $NOW); LISTE="$A_LISTE $LETZTE"; BUCH=$(( A_BUCH + 1 )); PAUSE=$A_PAUSE
   if [ "$A_STATUS" = IN ]; then STATUS=OUT
   else STATUS=IN; la=$(minuten "${A_LETZTE:-0:00}")
     [ $la -ge 660 ] && [ $la -le 870 ] && [ $NOW -gt $la ] && PAUSE=$(( PAUSE + NOW - la )); fi
@@ -54,7 +54,7 @@ if [ -n "$PRES" ] && [ "$STATUS" != "?" ]; then
     *) if [ -z "$Z_ORT" ] && [ "$STATUS" = IN ]; then wahl EIN; Z_ORT=$KTYP; Z_NAME=$KNAME; fi ;;
   esac
   { echo "Z_DATUM=$HEUTE"; echo "Z_STATUS=$STATUS"; echo "Z_PRES=$PRES"; echo "Z_LESE=$EPOCH"; echo "Z_LETZTE=$LETZTE"; echo "Z_BUCH=$BUCH"
-    echo "Z_ORT=$Z_ORT"; echo "Z_NAME='$Z_NAME'"; echo "Z_PAUSE=$PAUSE"; } > $B/zustand.txt
+    echo "Z_ORT=$Z_ORT"; echo "Z_NAME='$Z_NAME'"; echo "Z_PAUSE=$PAUSE"; echo "Z_ZEITEN='${LISTE# }'"; } > $B/zustand.txt
   ZL=""; [ -n "$Z_ORT" ] && ZL=" - $(label "$Z_ORT")"
   REST=$(( SOLL - PRES ))
   if [ "$STATUS" = IN ]; then

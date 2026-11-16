@@ -1,6 +1,6 @@
 # Stempeln — Projektstand für Claude
 
-**Stand 13.11.2026** · **Gemeinsame Version 5.2**: App (`app/`, `logik/`) 5.2 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.2 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 (unverändert, `MAKRO_NOETIG` 5.0) · Workflow `.github/workflows/app.yml` v1.0.0
+**Stand 16.11.2026** · **Gemeinsame Version 5.3**: App (`app/`, `logik/`) 5.3 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.3 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 (unverändert, `MAKRO_NOETIG` 5.0) · Workflow `.github/workflows/app.yml` v1.0.0
 
 ## 1. Nutzer und Arbeitsweise (unbedingt beachten)
 - **Christof** (GitHub `obitusde`), Pixel 8 (Android 17), MacroDroid Pro + Shizuku. Will so wenig wie möglich selbst machen, kein Terminal.
@@ -26,9 +26,11 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
-1. (16.11.) Hinweis „wenn du durcharbeitest“ unter „Voraussichtlich Schluss“ weglassen.
-2. (16.11.) Pause als Tabellenzeile mit Minuten rechtsbündig (z. B. „Pause gemacht ……… 36 min“, „Pause geplant ……… 45 min“).
-3. (16.11.) Zeile „Angefangen um 07:48“ (erste Buchung des Tages). Braucht neues Feld `Z_ERSTE` in zustand.txt (ende.sh: erste Zeit aus `ZEITEN`; bei angenommenem Stand ohne Nachlesen alten Wert behalten bzw. Tippzeit) → Skripte + App.
+(leer)
+
+Umgesetzt 16.11. (Christof: „b … Bau diese Sachen jetzt“) – **5.3** (App + Skripte, kein Makro-Import):
+- Skripte speichern alle Buchungen des Tages: `Z_ZEITEN='07:59 12:03 12:39'` (aus `LISTE` in `stand()`, haupt.sh gibt `A_LISTE` weiter, angenommener Stand hängt die Tippzeit an).
+- App-Tabelle: **Angefangen** (erste Buchung), **Pause** (läuft seit … / gemacht … min (12:03–12:39) / geplant), Soll, Bereits, Fehlt, Schluss; „wenn du durcharbeitest“ weg; Zeile „Buchungen heute: 07:59 – 12:03 · 12:39 – jetzt“; grünes Band zeigt „· Schluss 16:54“.
 
 Umgesetzt 16.11. (Christof: „c … jetzt bauen“) – **5.2** (App + Skripte, kein Makro-Import):
 - **Handy-Ansicht** („n'est pas optimisée“, Ursache 16.11.: Android-Desktop-Modus, nur Chrome-Neustart half): `seite_art` → `SEITE=mobil`; `pruef.sh` beendet einmal pro Lauf Chrome (`am force-stop com.android.chrome`, Merker `lauf/chrome-neu.txt`) und öffnet die Seite neu; bleibt es so → ⚠-Meldung „Beenden erzwingen“ (ende.sh).
@@ -58,6 +60,7 @@ Umgesetzt 12.11. (Christof: „Setze das alles jetzt um“):
 - App v0.2.0: Status mit Fortschrittsbalken, Zeilen Arbeitszeit Soll / Bereits gearbeitet / Fehlt noch / Voraussichtlich Schluss (+ Erklärung, `logik/Anzeige.kt`, Pause 30/45 min eingerechnet), „Überstunden“ (= Saldo bis gestern) mit Arbeitstagen zu 8 h 25; Heures du jour, Rattrapage (= Urlaubs-Ansparminuten, egal), HS ausgeblendet; Planen +15/+30/+45 min/+1 h/17:00/17:30/Uhrzeit, Knopf „Zurück“; Urlaub: erster + **letzter Urlaubstag** mit Hinweis, Status zeigt Urlaub und „geht wieder los am …“; Meldungen verschwinden nach 60 s; Umlaute; Inhalt nicht mehr unter der Statusleiste.
 
 ## 4. Offen / zu testen (Pixel)
+0000000. 5.3 (16.11.): App + Skripte aktualisieren, dann einmal „Stand lesen“ (erst danach gibt es `Z_ZEITEN`).
 000000. 5.2 (16.11.): App + Skripte aktualisieren. Prüfen: geplantes Stempeln mit Handy in der Tasche → Bildschirm geht an?
 00000. 5.1 (13.11.): App aktualisieren + Skripte aktualisieren (kein Makro-Import). Status-Band und „Plan löschen“ prüfen.
 0000. 5.0 (13.11.): App aktualisieren, Skripte aktualisieren, Makros „Stempeln-5.0“ + „Stempeln-Stand-5.0“ importieren, alle alten Stempel-Makros löschen. Prüfen: Dauer (~15–25 s?), App kommt zurück, eine Meldung, Plan verschwindet nach Stempeln, Pause orange, unten „Version: App 5.0 · Skripte 5.0 · Makros 5.0“.

@@ -22,7 +22,7 @@ else
   ZWEIT=0; . $S/tipp.sh
 fi
 { echo "A_AKTION=$AKTION"; echo "A_STATUS=$STATUS"; echo "A_TYP=$KTYP"; echo "A_NAME='$KNAME'"; echo "A_TEXT='$ERGT'"; echo "A_KORR=$KORR"
-  echo "A_PRES=$PRES"; echo "A_LETZTE=$LETZTE"; echo "A_BUCH=$BUCH"; echo "A_PAUSE=$PAUSE"
+  echo "A_PRES=$PRES"; echo "A_LETZTE=$LETZTE"; echo "A_BUCH=$BUCH"; echo "A_PAUSE=$PAUSE"; echo "A_LISTE='$LISTE'"
   echo "A_WUNSCH=$WUNSCH"; echo "A_VLABEL='$V_LABEL'"; } > "$D/aktion.txt"
 t "Aktion: $AKTION - $ERGT"
 # nach einem Tipp kurz warten, bis die Buchung gespeichert ist (danach laedt die Huelle die Seite neu)

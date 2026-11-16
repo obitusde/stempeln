@@ -1,4 +1,4 @@
-// Stempeln-App: Oberflaeche 5.1 - farbiges Status-Band oben, Plan mit Knopf "Plan löschen"; Status mit Balken, Arbeitszeit (Soll / bereits / fehlt / Schluss), Pause, Ueberstunden,
+// Stempeln-App: Oberflaeche 5.3 - Angefangen, Pause, Buchungen, Schluss im Status-Band; farbiges Status-Band oben, Plan mit Knopf "Plan löschen"; Status mit Balken, Arbeitszeit (Soll / bereits / fehlt / Schluss), Pause, Ueberstunden,
 // Arbeitstage bis zum Arbeitsende, grosser Knopf zeigt Ein/Aus + Ort, Planen, Urlaub, Einstellungen. Rechnet nur, solange sie offen ist.
 package io.github.obitusde.stempeln
 
@@ -176,7 +176,7 @@ class MainActivity : Activity() {
                 z.buch == 0 -> zeigeBand("NOCH NICHT EINGESTEMPELT",
                     Steuerung.aktuelleZone(this)?.let { "Ort: " + knopf(it) } ?: "Erinnerung ab ${hhmm(se.start(heute))}", 0xFF546E7A.toInt())
                 z.status == "IN" -> zeigeBand("EINGESTEMPELT", "seit ${z.letzte}" + ortText(z.ort) +
-                    if (voll) " · Soll erreicht" else " · noch ${Anzeige.lang(g.fehlt)}", gruen)
+                    if (voll) " · Soll erreicht" else " · noch ${Anzeige.lang(g.fehlt)} · Schluss ${g.schluss?.let { hhmm(it) } ?: "–"}", gruen)
                 pauseLaeuft -> zeigeBand("PAUSE", pauseText!!.removePrefix("Pause läuft "), orange)
                 voll -> zeigeBand("FEIERABEND", "ausgestempelt um ${z.letzte}" + ortText(z.ort) + if (g.mehr > 0) " · +${Anzeige.lang(g.mehr)}" else "", 0xFF0B6B2B.toInt())
                 else -> zeigeBand("AUSGESTEMPELT", "seit ${z.letzte}" + ortText(z.ort) + " · noch ${Anzeige.lang(g.fehlt)} offen", 0xFFC62828.toInt())
@@ -187,12 +187,14 @@ class MainActivity : Activity() {
                 LinearLayout.LayoutParams(-1, dp(18)).apply { setMargins(0, dp(8), 0, dp(4)) })
             k.addView(text(13f, farbe = grau, t = "${Anzeige.lang(g.bereits)} von ${Anzeige.lang(g.soll)} · ${g.bereits * 100 / g.soll} %"))
             k.addView(View(this), LinearLayout.LayoutParams(-1, dp(8)))
+            Anzeige.angefangen(l)?.let { zeile(k, "Angefangen", hhmm(it), dunkel, true) }
+            Anzeige.pauseZeile(l)?.let { (a, b) -> zeile(k, a, b, if (a == "Pause läuft") orange else dunkel, true) }
             zeile(k, "Arbeitszeit Soll", Anzeige.lang(g.soll))
             zeile(k, "Bereits gearbeitet", Anzeige.lang(g.bereits))
             zeile(k, "Fehlt noch", if (voll) "nichts" else Anzeige.lang(g.fehlt), if (voll) gruen else dunkel, true)
             zeile(k, "Voraussichtlich Schluss", g.schluss?.let { hhmm(it) } ?: "jetzt", if (voll) gruen else blau, true)
-            k.addView(text(13f, farbe = grau, t = g.hinweis))
-            if (pauseText != null && !pauseLaeuft) k.addView(text(15f, farbe = dunkel, t = pauseText).apply { setPadding(0, dp(8), 0, 0) })
+            if (g.hinweis != "wenn du durcharbeitest") k.addView(text(13f, farbe = grau, t = g.hinweis))
+            Anzeige.buchungen(l).ifEmpty { null }?.let { k.addView(text(14f, farbe = grau, t = "Buchungen heute: $it").apply { setPadding(0, dp(8), 0, 0) }) }
             if (u != null) k.addView(text(14f, farbe = lila, t = "Urlaub eingetragen: ${datum(u.von)} bis ${datum(u.bis)} (letzter Urlaubstag)"))
         }
         // geplantes Stempeln: gut sichtbar oben, mit Knopf zum Loeschen
