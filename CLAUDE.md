@@ -26,7 +26,8 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
-(leer)
+1. (16.11.) Hinweis „wenn du durcharbeitest“ unter „Voraussichtlich Schluss“ weglassen.
+2. (16.11.) Pause als Tabellenzeile mit Minuten rechtsbündig (z. B. „Pause gemacht ……… 36 min“, „Pause geplant ……… 45 min“).
 
 Umgesetzt 16.11. (Christof: „c … jetzt bauen“) – **5.2** (App + Skripte, kein Makro-Import):
 - **Handy-Ansicht** („n'est pas optimisée“, Ursache 16.11.: Android-Desktop-Modus, nur Chrome-Neustart half): `seite_art` → `SEITE=mobil`; `pruef.sh` beendet einmal pro Lauf Chrome (`am force-stop com.android.chrome`, Merker `lauf/chrome-neu.txt`) und öffnet die Seite neu; bleibt es so → ⚠-Meldung „Beenden erzwingen“ (ende.sh).
