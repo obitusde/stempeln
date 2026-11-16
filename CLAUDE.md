@@ -26,7 +26,7 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
-(leer)
+1. (16.11.) Seite „Cette application n'est pas optimisée pour cette taille d'écran“ (Chrome in Handy-Ansicht) erkennen → sofort ⚠-Meldung „Chrome zeigt die Handy-Ansicht – Desktop-Website einschalten“, nicht 3× neu öffnen. Christof: ja, später bauen. (16.11.: trat nach Nutzung eines „Desktop-Modus“ auf, Chrome-Ausnahme `[*.]cloud-horoquartz.fr` war gesetzt, Tabs schließen half nicht.)
 
 Umgesetzt 13.11. (Christof: „Neue version“) – **5.1** (App + Skripte, Skripte nur Nummer):
 - Farbiges **Status-Band** ganz oben: EINGESTEMPELT (grün), PAUSE (orange, seit … min / vorbei um …), AUSGESTEMPELT (rot), FEIERABEND (dunkelgrün), NOCH NICHT EINGESTEMPELT (blaugrau), URLAUB (lila), FREI (grau).
