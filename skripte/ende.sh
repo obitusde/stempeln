@@ -98,6 +98,7 @@ else
   else MELD="Stempelseite nicht gelesen - bitte selbst pruefen"; fi
   [ "$A_AKTION" = tipp ] && MELD="$A_TEXT getippt, aber danach: $MELD"
   [ "$A_AKTION" = keine ] && [ -n "$A_TEXT" ] && MELD=$A_TEXT
+  [ "$SEITE" = mobil ] && MELD="Chrome zeigt die Handy-Ansicht (z. B. nach Android-Desktop-Modus), auch nach Chrome-Neustart - nichts getippt. Bitte lange auf das Chrome-Symbol, App-Info, Beenden erzwingen, dann nochmal stempeln"
 fi
 t "Meldung: $MELD"
 note "$MELD" "Stempeln" stempeln $ART

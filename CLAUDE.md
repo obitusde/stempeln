@@ -1,6 +1,6 @@
 # Stempeln — Projektstand für Claude
 
-**Stand 13.11.2026** · **Gemeinsame Version 5.1**: App (`app/`, `logik/`) 5.1 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.1 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 (unverändert, `MAKRO_NOETIG` 5.0) · Workflow `.github/workflows/app.yml` v1.0.0
+**Stand 13.11.2026** · **Gemeinsame Version 5.2**: App (`app/`, `logik/`) 5.2 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.2 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 (unverändert, `MAKRO_NOETIG` 5.0) · Workflow `.github/workflows/app.yml` v1.0.0
 
 ## 1. Nutzer und Arbeitsweise (unbedingt beachten)
 - **Christof** (GitHub `obitusde`), Pixel 8 (Android 17), MacroDroid Pro + Shizuku. Will so wenig wie möglich selbst machen, kein Terminal.
@@ -26,7 +26,12 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
-1. (16.11.) Seite „Cette application n'est pas optimisée pour cette taille d'écran“ (Chrome in Handy-Ansicht) erkennen → sofort ⚠-Meldung „Chrome zeigt die Handy-Ansicht – Desktop-Website einschalten“, nicht 3× neu öffnen. Christof: ja, später bauen. (16.11.: Ursache = **Android-Desktop-Modus** (Handy an Bildschirm); Chrome-Ausnahme `[*.]cloud-horoquartz.fr` war gesetzt, Tabs schließen half nicht, **Chrome beenden erzwingen half**.) Meldung soll daher sagen: „Chrome zeigt die Handy-Ansicht (z. B. nach Android-Desktop-Modus) – Chrome beenden erzwingen (App-Info) und nochmal stempeln“. Prüfen, ob das Skript Chrome selbst neu starten darf (`am force-stop com.android.chrome` per Shizuku, dann Seite neu öffnen) – Christof fragen.
+(leer)
+
+Umgesetzt 16.11. (Christof: „c … jetzt bauen“) – **5.2** (App + Skripte, kein Makro-Import):
+- **Handy-Ansicht** („n'est pas optimisée“, Ursache 16.11.: Android-Desktop-Modus, nur Chrome-Neustart half): `seite_art` → `SEITE=mobil`; `pruef.sh` beendet einmal pro Lauf Chrome (`am force-stop com.android.chrome`, Merker `lauf/chrome-neu.txt`) und öffnet die Seite neu; bleibt es so → ⚠-Meldung „Beenden erzwingen“ (ende.sh).
+- Titel „Stempeln“ oben in der App entfernt.
+- **Aufwecken:** start.sh weckt den Bildschirm jetzt immer (vorher nur, wenn „gesperrt“ erkannt wurde); Sperr-Erkennung um `mKeyguardShowing`/`keyguardShowing` erweitert. Entsperren mit PIN geht nicht automatisch (Sicherheit) – Gesichtserkennung oder „Entsperrt lassen“ mit vertrauenswürdigem Gerät.
 
 Umgesetzt 13.11. (Christof: „Neue version“) – **5.1** (App + Skripte, Skripte nur Nummer):
 - Farbiges **Status-Band** ganz oben: EINGESTEMPELT (grün), PAUSE (orange, seit … min / vorbei um …), AUSGESTEMPELT (rot), FEIERABEND (dunkelgrün), NOCH NICHT EINGESTEMPELT (blaugrau), URLAUB (lila), FREI (grau).
@@ -51,6 +56,7 @@ Umgesetzt 12.11. (Christof: „Setze das alles jetzt um“):
 - App v0.2.0: Status mit Fortschrittsbalken, Zeilen Arbeitszeit Soll / Bereits gearbeitet / Fehlt noch / Voraussichtlich Schluss (+ Erklärung, `logik/Anzeige.kt`, Pause 30/45 min eingerechnet), „Überstunden“ (= Saldo bis gestern) mit Arbeitstagen zu 8 h 25; Heures du jour, Rattrapage (= Urlaubs-Ansparminuten, egal), HS ausgeblendet; Planen +15/+30/+45 min/+1 h/17:00/17:30/Uhrzeit, Knopf „Zurück“; Urlaub: erster + **letzter Urlaubstag** mit Hinweis, Status zeigt Urlaub und „geht wieder los am …“; Meldungen verschwinden nach 60 s; Umlaute; Inhalt nicht mehr unter der Statusleiste.
 
 ## 4. Offen / zu testen (Pixel)
+000000. 5.2 (16.11.): App + Skripte aktualisieren. Prüfen: geplantes Stempeln mit Handy in der Tasche → Bildschirm geht an?
 00000. 5.1 (13.11.): App aktualisieren + Skripte aktualisieren (kein Makro-Import). Status-Band und „Plan löschen“ prüfen.
 0000. 5.0 (13.11.): App aktualisieren, Skripte aktualisieren, Makros „Stempeln-5.0“ + „Stempeln-Stand-5.0“ importieren, alle alten Stempel-Makros löschen. Prüfen: Dauer (~15–25 s?), App kommt zurück, eine Meldung, Plan verschwindet nach Stempeln, Pause orange, unten „Version: App 5.0 · Skripte 5.0 · Makros 5.0“.
 000. v0.3.0 / v4.7 (12.11.): App aktualisieren (Knopf), dann Skripte aktualisieren, Einstellungen prüfen. Prüfen: Ton „geklappt“/„Problem“ kommt, keine doppelte Meldung (sonst liefert `am broadcast` kein result=7 → Rückfall), Knopf-Text, Pause, Zähler 395.

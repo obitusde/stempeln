@@ -1,6 +1,6 @@
 # Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV = gemeinsame Version von App, Skripten und Makros)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=5.1
+SKV=5.2
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0
@@ -20,7 +20,9 @@ PAUSE_SS=${E_PAUSE_SS:-$PAUSE_SS}; PAUSE_KURZ=${E_PAUSE_KURZ:-$PAUSE_KURZ}
 ORTE=$(cat $B/orte.txt 2>/dev/null)
 # Welche Seite zeigt Chrome? $1 = Bildschirminhalt -> SEITE=clock|fremd, U=Adresse aus der Adressleiste
 # (Die Startseite .../ux/home zeigt auch "HOME OFFICE" - deshalb zaehlt die Adresse; ohne Adresse: Abschnitt "TIMBRER AVEC MOTIF")
+# SEITE=mobil: Chrome zeigt die Handy-Ansicht ("n'est pas optimisee pour cette taille d'ecran", z. B. nach Android-Desktop-Modus)
 seite_art() { U=$(grep -o 'webquartz/ux/[a-z]*' "$1" 2>/dev/null | head -1)
+  grep -q 'pas optimis' "$1" 2>/dev/null && { SEITE=mobil; return; }
   case "$U" in
     */clock) SEITE=clock ;;
     "") if grep -q 'TIMBRER AVEC MOTIF' "$1" 2>/dev/null; then SEITE=clock; else SEITE=fremd; fi ;;
@@ -33,7 +35,7 @@ zurueck() { am start -a android.intent.action.MAIN -c android.intent.category.LA
 # Sperrbildschirm im Bildschirminhalt $1?
 sperrbild() { grep -qE 'systemui:id/(keyguard|device_entry)' "$1" 2>/dev/null; }
 # Sperrbildschirm sichtbar? (0 = nein)
-gesperrt() { dumpsys window </dev/null 2>&1 | grep -cE 'isKeyguardShowing=true|mShowingLockscreen=true|mDreamingLockscreen=true'; }
+gesperrt() { dumpsys window </dev/null 2>&1 | grep -cE 'isKeyguardShowing=true|mShowingLockscreen=true|mDreamingLockscreen=true|mKeyguardShowing=true|keyguardShowing=true'; }
 # Meldung: note TEXT TITEL TAG [ART] - zeigt die App (ART fortschritt = still, hinweis, ok = Ton "geklappt", problem = Ton "Problem");
 # antwortet die App nicht (result=7 fehlt), kommt die Meldung wie frueher von der Shell
 note() { r=$(am broadcast -n io.github.obitusde.stempeln/.StandEmpfaenger -a io.github.obitusde.stempeln.MELDUNG --es art "${4:-fortschritt}" --es text "$1" </dev/null 2>&1)

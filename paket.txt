@@ -1,9 +1,9 @@
-#STEMPELPAKET 5.1
+#STEMPELPAKET 5.2
 # Stempel-Skripte fuer MacroDroid (Makro "Stempeln Update" packt aus). Nicht von Hand aendern.
 #DATEI kopf.sh
 # Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV = gemeinsame Version von App, Skripten und Makros)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=5.1
+SKV=5.2
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0
@@ -23,7 +23,9 @@ PAUSE_SS=${E_PAUSE_SS:-$PAUSE_SS}; PAUSE_KURZ=${E_PAUSE_KURZ:-$PAUSE_KURZ}
 ORTE=$(cat $B/orte.txt 2>/dev/null)
 # Welche Seite zeigt Chrome? $1 = Bildschirminhalt -> SEITE=clock|fremd, U=Adresse aus der Adressleiste
 # (Die Startseite .../ux/home zeigt auch "HOME OFFICE" - deshalb zaehlt die Adresse; ohne Adresse: Abschnitt "TIMBRER AVEC MOTIF")
+# SEITE=mobil: Chrome zeigt die Handy-Ansicht ("n'est pas optimisee pour cette taille d'ecran", z. B. nach Android-Desktop-Modus)
 seite_art() { U=$(grep -o 'webquartz/ux/[a-z]*' "$1" 2>/dev/null | head -1)
+  grep -q 'pas optimis' "$1" 2>/dev/null && { SEITE=mobil; return; }
   case "$U" in
     */clock) SEITE=clock ;;
     "") if grep -q 'TIMBRER AVEC MOTIF' "$1" 2>/dev/null; then SEITE=clock; else SEITE=fremd; fi ;;
@@ -36,7 +38,7 @@ zurueck() { am start -a android.intent.action.MAIN -c android.intent.category.LA
 # Sperrbildschirm im Bildschirminhalt $1?
 sperrbild() { grep -qE 'systemui:id/(keyguard|device_entry)' "$1" 2>/dev/null; }
 # Sperrbildschirm sichtbar? (0 = nein)
-gesperrt() { dumpsys window </dev/null 2>&1 | grep -cE 'isKeyguardShowing=true|mShowingLockscreen=true|mDreamingLockscreen=true'; }
+gesperrt() { dumpsys window </dev/null 2>&1 | grep -cE 'isKeyguardShowing=true|mShowingLockscreen=true|mDreamingLockscreen=true|mKeyguardShowing=true|keyguardShowing=true'; }
 # Meldung: note TEXT TITEL TAG [ART] - zeigt die App (ART fortschritt = still, hinweis, ok = Ton "geklappt", problem = Ton "Problem");
 # antwortet die App nicht (result=7 fehlt), kommt die Meldung wie frueher von der Shell
 note() { r=$(am broadcast -n io.github.obitusde.stempeln/.StandEmpfaenger -a io.github.obitusde.stempeln.MELDUNG --es art "${4:-fortschritt}" --es text "$1" </dev/null 2>&1)
@@ -133,8 +135,9 @@ L=$D/log.txt; exec 2>>"$L"
 t "$TEXT (Skripte $SKV, Makro ${MV:-alt}) - Start"
 # Version der Makro-Huelle fuer die App merken (Huellen ab 5.0 setzen MV)
 [ -n "$MV" ] && echo "$MV" > $B/makro-version.txt
-# gesperrt (z. B. geplantes Stempeln aus der App): Bildschirm wecken
-[ "$(gesperrt)" != 0 ] && input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
+# Bildschirm immer wecken (z. B. geplantes Stempeln, Handy in der Tasche) - bei an-Bildschirm passiert nichts;
+# mit Gesichtserkennung entsperrt sich das Handy dann, sobald du draufschaust
+input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
 n=0
 while [ "$(gesperrt)" != 0 ] && [ $n -lt 60 ]; do
   [ $n = 0 ] && note "Bitte entsperren - dann geht es weiter" "Stempeln" stempeln hinweis
@@ -158,6 +161,7 @@ am start -a android.intent.action.VIEW -d "https://aptime.cloud-horoquartz.fr/we
 sleep 7
 #DATEI pruef.sh
 # Stempelseite noch nicht fertig (Agenda fehlt) - die Huelle ruft das bis zu 8x auf (R=1..8), die Wartezeiten stehen HIER (aendern ohne Import)
+# Handy-Ansicht ("n'est pas optimisee", z. B. nach Android-Desktop-Modus) -> einmal Chrome beenden und Seite neu oeffnen, danach nur noch warten
 # Handy gesperrt / Chrome sicher auf einer anderen Seite (Adresse z. B. .../ux/home) -> sofort Stempelseite neu oeffnen (hoechstens 3x)
 # keine Adresse lesbar und keine Stempelseite: erst ab der 3. Pruefung neu oeffnen (sonst stoert es eine langsam ladende Seite)
 # Stempelseite da, laedt nur langsam -> kurz warten
@@ -165,28 +169,40 @@ lauf
 R=${R:-9}
 cp $B/seite-roh.txt "$D/seite-pruef$R.txt" 2>/dev/null
 seite_art "$D/seite-pruef$R.txt"
+oeffnen() { am start -a android.intent.action.VIEW -d "https://aptime.cloud-horoquartz.fr/webquartz/ux/clock" -p com.android.chrome --es com.android.browser.application_id macrodroid.stempeln </dev/null >/dev/null 2>&1; }
 NEU=0; GRUND=""
-if sperrbild "$D/seite-pruef$R.txt" || [ "$(gesperrt)" != 0 ]; then NEU=1; GRUND="gesperrt"
-elif [ -n "$U" ] && [ "$SEITE" != clock ]; then NEU=1; GRUND="falsche Seite"
-elif [ "$SEITE" != clock ] && [ $R -ge 3 ]; then NEU=1; GRUND="keine Stempelseite erkannt"; fi
-if [ $NEU = 1 ]; then
-  input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
-  bis=$(( $(date +%s) + 8 )); n=0
-  while [ "$(gesperrt)" != 0 ] && [ $(date +%s) -lt $bis ]; do
-    [ $n = 0 ] && note "Bitte entsperren - ich warte noch auf die Stempelseite" "Stempeln" stempeln hinweis
-    n=$(( n + 1 )); sleep 1
-  done
-  Z=$(cat "$D/neu-zahl.txt" 2>/dev/null); Z=${Z:-0}
-  if [ $Z -lt 3 ]; then
-    echo $(( Z + 1 )) > "$D/neu-zahl.txt"
-    t "pruef $R: $GRUND (${U:-ohne Adresse}), $n s gesperrt -> Stempelseite neu geoeffnet ($(( Z + 1 )). Mal)"
-    am start -a android.intent.action.VIEW -d "https://aptime.cloud-horoquartz.fr/webquartz/ux/clock" -p com.android.chrome --es com.android.browser.application_id macrodroid.stempeln </dev/null >/dev/null 2>&1
-    sleep 5
+if [ "$SEITE" = mobil ]; then
+  if [ ! -f "$D/chrome-neu.txt" ]; then
+    echo 1 > "$D/chrome-neu.txt"
+    t "pruef $R: Handy-Ansicht -> Chrome beenden und Stempelseite neu oeffnen"
+    note "Chrome zeigte die Handy-Ansicht - Chrome wird neu gestartet" "Stempeln" stempeln fortschritt
+    am force-stop com.android.chrome </dev/null >/dev/null 2>&1
+    sleep 1; oeffnen; sleep 6
   else
-    t "pruef $R: $GRUND (${U:-ohne Adresse}) - schon 3x neu geoeffnet, warte nur"; sleep 3
+    t "pruef $R: weiterhin Handy-Ansicht (Chrome schon neu gestartet)"; sleep 1
   fi
 else
-  t "pruef $R: Seite=$SEITE (${U:-ohne Adresse}) laedt noch - warte"; sleep 2
+  if sperrbild "$D/seite-pruef$R.txt" || [ "$(gesperrt)" != 0 ]; then NEU=1; GRUND="gesperrt"
+  elif [ -n "$U" ] && [ "$SEITE" != clock ]; then NEU=1; GRUND="falsche Seite"
+  elif [ "$SEITE" != clock ] && [ $R -ge 3 ]; then NEU=1; GRUND="keine Stempelseite erkannt"; fi
+  if [ $NEU = 1 ]; then
+    input keyevent KEYCODE_WAKEUP </dev/null >/dev/null 2>&1
+    bis=$(( $(date +%s) + 8 )); n=0
+    while [ "$(gesperrt)" != 0 ] && [ $(date +%s) -lt $bis ]; do
+      [ $n = 0 ] && note "Bitte entsperren - ich warte noch auf die Stempelseite" "Stempeln" stempeln hinweis
+      n=$(( n + 1 )); sleep 1
+    done
+    Z=$(cat "$D/neu-zahl.txt" 2>/dev/null); Z=${Z:-0}
+    if [ $Z -lt 3 ]; then
+      echo $(( Z + 1 )) > "$D/neu-zahl.txt"
+      t "pruef $R: $GRUND (${U:-ohne Adresse}), $n s gesperrt -> Stempelseite neu geoeffnet ($(( Z + 1 )). Mal)"
+      oeffnen; sleep 5
+    else
+      t "pruef $R: $GRUND (${U:-ohne Adresse}) - schon 3x neu geoeffnet, warte nur"; sleep 3
+    fi
+  else
+    t "pruef $R: Seite=$SEITE (${U:-ohne Adresse}) laedt noch - warte"; sleep 2
+  fi
 fi
 #DATEI haupt.sh
 # Stempeln: Stand lesen, Knopf waehlen, tippen (oder bewusst nicht)
@@ -350,6 +366,7 @@ else
   else MELD="Stempelseite nicht gelesen - bitte selbst pruefen"; fi
   [ "$A_AKTION" = tipp ] && MELD="$A_TEXT getippt, aber danach: $MELD"
   [ "$A_AKTION" = keine ] && [ -n "$A_TEXT" ] && MELD=$A_TEXT
+  [ "$SEITE" = mobil ] && MELD="Chrome zeigt die Handy-Ansicht (z. B. nach Android-Desktop-Modus), auch nach Chrome-Neustart - nichts getippt. Bitte lange auf das Chrome-Symbol, App-Info, Beenden erzwingen, dann nochmal stempeln"
 fi
 t "Meldung: $MELD"
 note "$MELD" "Stempeln" stempeln $ART
@@ -469,5 +486,5 @@ echo "$HEUTE" > $B/heute-nicht.txt
 rm -f $B/vorschlag.txt
 note "Heute keine Zuhause-Erinnerung mehr - im Buero erinnere ich dich wie immer" "Stempeln" heutenicht
 #DATEI VERSION
-5.1
-#ENDE 5.1
+5.2
+#ENDE 5.2

@@ -112,7 +112,6 @@ class MainActivity : Activity() {
         infos = text(13f, farbe = grau)
         val inhalt = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(20), dp(16), dp(28))
-            addView(text(26f, true, blau, "Stempeln"))
             addView(warnungen); addView(band); addView(planZeile); addView(statusKarte)
             addView(stempelTaste, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(4), 0, dp(4)) })
             addView(paar(taste("Stand lesen") { befehl("stand") }, taste("Planen") { planen() }))
