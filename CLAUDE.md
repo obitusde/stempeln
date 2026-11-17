@@ -1,6 +1,6 @@
 # Stempeln — Projektstand für Claude
 
-**Stand 17.11.2026** · **Gemeinsame Version 5.4**: App (`app/`, `logik/`) 5.4 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.4 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 (unverändert, `MAKRO_NOETIG` 5.0) · Workflow `.github/workflows/app.yml` v1.0.0
+**Stand 17.11.2026** · **Gemeinsame Version 5.5**: App (`app/`, `logik/`) 5.5 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.5 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 (unverändert, `MAKRO_NOETIG` 5.0) · Workflow `.github/workflows/app.yml` v1.0.0
 
 ## 1. Nutzer und Arbeitsweise (unbedingt beachten)
 - **Christof** (GitHub `obitusde`), Pixel 8 (Android 17), MacroDroid Pro + Shizuku. Will so wenig wie möglich selbst machen, kein Terminal.
@@ -26,7 +26,10 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
-1. (17.11.) Chrome-Tab der Stempelseite nach dem Lauf schließen. Ideen: a) am Ende `input keyevent KEYCODE_BACK` in Chrome (Chrome schließt Tabs, die eine andere App geöffnet hat, beim Zurück am Verlaufsanfang – unsicher bei wiederverwendetem Tab mit `application_id`), b) Seite als Custom Tab öffnen (`--esn android.support.customtabs.extra.SESSION`, verschwindet ganz; Makro-Import, Desktop-Ansicht prüfen), c) Chrome beenden (Tab bleibt in der Liste). **Christof 17.11.: a** (erst „Zurück“ testen, sonst b). Plan: ende.sh vor `zurueck` bis zu 4× `KEYCODE_BACK`, nur solange Chrome im Vordergrund ist (`dumpsys window` mCurrentFocus), damit nie in einer anderen App „Zurück“ gedrückt wird.
+(leer)
+
+Umgesetzt 17.11. (Christof: „a … jetzt bauen“) – **5.5** (Skripte; App nur Nummer):
+- Stempel-Tab schließen: `ende.sh` ruft vor `zurueck` `tab_zu` (kopf.sh): bis zu 4× `KEYCODE_BACK`, nur solange `chrome_vorne` (dumpsys window mCurrentFocus/mFocusedApp enthält com.android.chrome). Ungetestet am Pixel: schließt Chrome den wiederverwendeten Tab wirklich? Sonst Variante b (Custom Tab, Makro-Import).
 
 Umgesetzt 17.11. (Christof: „jetzt bauen“) – **5.4** (App; Skripte nur Nummer):
 - Mittagspause-Erinnerung je nach Knopf vom Einstempeln: Home Office **12:15** (`E_MITTAG_HO`, `Regeln.MITTAG_HO`), HUB/SUR SITE **11:45** (`E_MITTAG`); beide in den Einstellungen änderbar (`Einstellungen.mittagFuer`).
@@ -63,6 +66,7 @@ Umgesetzt 12.11. (Christof: „Setze das alles jetzt um“):
 - App v0.2.0: Status mit Fortschrittsbalken, Zeilen Arbeitszeit Soll / Bereits gearbeitet / Fehlt noch / Voraussichtlich Schluss (+ Erklärung, `logik/Anzeige.kt`, Pause 30/45 min eingerechnet), „Überstunden“ (= Saldo bis gestern) mit Arbeitstagen zu 8 h 25; Heures du jour, Rattrapage (= Urlaubs-Ansparminuten, egal), HS ausgeblendet; Planen +15/+30/+45 min/+1 h/17:00/17:30/Uhrzeit, Knopf „Zurück“; Urlaub: erster + **letzter Urlaubstag** mit Hinweis, Status zeigt Urlaub und „geht wieder los am …“; Meldungen verschwinden nach 60 s; Umlaute; Inhalt nicht mehr unter der Statusleiste.
 
 ## 4. Offen / zu testen (Pixel)
+000000000. 5.5 (17.11.): App + Skripte aktualisieren; nach Stempeln/Stand: ist der Stempel-Tab in Chrome weg? (Tab-Übersicht)
 00000000. 5.4 (17.11.): App + Skripte aktualisieren; Home Office: Mittag-Erinnerung erst 12:15.
 0000000. 5.3 (16.11.): App + Skripte aktualisieren, dann einmal „Stand lesen“ (erst danach gibt es `Z_ZEITEN`).
 000000. 5.2 (16.11.): App + Skripte aktualisieren. Prüfen: geplantes Stempeln mit Handy in der Tasche → Bildschirm geht an?

@@ -104,4 +104,5 @@ t "Meldung: $MELD"
 note "$MELD" "Stempeln" stempeln $ART
 rm -f $B/lock.txt
 app_melden
+tab_zu
 zurueck

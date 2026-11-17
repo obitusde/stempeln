@@ -1,6 +1,6 @@
 # Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV = gemeinsame Version von App, Skripten und Makros)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=5.4
+SKV=5.5
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0
@@ -30,6 +30,11 @@ seite_art() { U=$(grep -o 'webquartz/ux/[a-z]*' "$1" 2>/dev/null | head -1)
   esac; }
 # App "Stempeln" benachrichtigen (neuer Stand / Konto) - sie stellt danach ihre Wecker neu
 app_melden() { am broadcast -n io.github.obitusde.stempeln/.StandEmpfaenger -a io.github.obitusde.stempeln.STAND </dev/null >/dev/null 2>&1; }
+# Ist Chrome im Vordergrund? (0 = nein)
+chrome_vorne() { dumpsys window </dev/null 2>&1 | grep -E 'mCurrentFocus=|mFocusedApp=' | grep -c 'com.android.chrome'; }
+# Stempel-Tab schliessen: "Zurueck" in Chrome (Chrome schliesst einen von einer anderen App geoeffneten Tab am Verlaufsanfang),
+# hoechstens 4x und nur solange Chrome vorne ist - nie "Zurueck" in einer anderen App
+tab_zu() { k=0; while [ $k -lt 4 ] && [ "$(chrome_vorne)" != 0 ]; do input keyevent KEYCODE_BACK </dev/null >/dev/null 2>&1; k=$(( k + 1 )); sleep 1; done; t "Tab zu: ${k}x Zurueck"; }
 # Zum Schluss die App "Stempeln" zeigen (neuer Stand) statt Chrome - wie ein Tipp aufs App-Symbol
 zurueck() { am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n io.github.obitusde.stempeln/.MainActivity </dev/null >/dev/null 2>&1; }
 # Sperrbildschirm im Bildschirminhalt $1?
