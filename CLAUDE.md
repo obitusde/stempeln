@@ -26,7 +26,7 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
-(leer)
+1. (17.11.) Chrome-Tab der Stempelseite nach dem Lauf schließen. Ideen: a) am Ende `input keyevent KEYCODE_BACK` in Chrome (Chrome schließt Tabs, die eine andere App geöffnet hat, beim Zurück am Verlaufsanfang – unsicher bei wiederverwendetem Tab mit `application_id`), b) Seite als Custom Tab öffnen (`--esn android.support.customtabs.extra.SESSION`, verschwindet ganz; Makro-Import, Desktop-Ansicht prüfen), c) Chrome beenden (Tab bleibt in der Liste). Christof fragen.
 
 Umgesetzt 17.11. (Christof: „jetzt bauen“) – **5.4** (App; Skripte nur Nummer):
 - Mittagspause-Erinnerung je nach Knopf vom Einstempeln: Home Office **12:15** (`E_MITTAG_HO`, `Regeln.MITTAG_HO`), HUB/SUR SITE **11:45** (`E_MITTAG`); beide in den Einstellungen änderbar (`Einstellungen.mittagFuer`).
