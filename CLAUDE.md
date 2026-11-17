@@ -26,7 +26,7 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
-(leer)
+1. (17.11.) Mittagspause-Erinnerung je nach Ort: **Home Office ab 12:15**, sonst (HUB, SUR SITE) **ab 11:45**; als Standard, in den Einstellungen änderbar (zwei Werte statt `E_MITTAG`: z. B. `E_MITTAG_HO=12:15`, `E_MITTAG=11:45`; Ort = Knopf vom Einstempeln `Z_ORT`).
 
 Umgesetzt 16.11. (Christof: „b … Bau diese Sachen jetzt“) – **5.3** (App + Skripte, kein Makro-Import):
 - Skripte speichern alle Buchungen des Tages: `Z_ZEITEN='07:59 12:03 12:39'` (aus `LISTE` in `stand()`, haupt.sh gibt `A_LISTE` weiter, angenommener Stand hängt die Tippzeit an).
