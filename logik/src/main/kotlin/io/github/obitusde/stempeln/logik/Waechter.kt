@@ -13,7 +13,8 @@ object Regeln {
     const val START_DI_FR = 435     // 07:15 Erinnerung an Home-Office-Tagen
     const val START_SONST = 465     // 07:45 Mo/Mi/Do
     const val ORTBIS = 660          // 11:00 danach keine Ortszonen mehr
-    const val MITTAG = 705          // 11:45 Mittagspause-Erinnerung
+    const val MITTAG = 705          // 11:45 Mittagspause-Erinnerung (HUB, SUR SITE)
+    const val MITTAG_HO = 735       // 12:15 Mittagspause-Erinnerung im Home Office
     const val MITTAG_ENDE = 870     // 14:30
     const val ABEND = 1170          // 19:30 danach keine Erinnerungen mehr
     const val PAUSE_SS = 45         // Pause vorbei nach 45 min bei SUR SITE
@@ -116,6 +117,7 @@ object Waechter {
         val kand = mutableListOf<Int>()   // Minuten des Tages fuer das naechste Aufwachen
         var e: Erinnerung? = null
         var grund = ""
+        val mittag = se.mittagFuer(z.ort)
         val label = { ziel: String -> knopf(if (z.ort.isNotEmpty()) z.ort else if (ziel == "EIN") l.zone else null) }
         if (z.status == "IN") {
             val letzte = minutenOderNull(z.letzte) ?: 0
@@ -126,9 +128,9 @@ object Waechter {
                 kand += now + (soll - p)
                 grund = "Soll voll um ${hhmm(now + soll - p)}"
                 if (letzte < 660) {
-                    if (now >= se.mittag && now < Regeln.MITTAG_ENDE)
+                    if (now >= mittag && now < Regeln.MITTAG_ENDE)
                         e = Erinnerung("AUS", "Mittagspause", "Mittagspause (heute ${hm(p)}) - ausstempeln?", label("AUS"), false, se.wdh)
-                    else if (now < se.mittag) { kand += se.mittag; grund = "Mittagspause-Erinnerung um ${hhmm(se.mittag)}" }
+                    else if (now < mittag) { kand += mittag; grund = "Mittagspause-Erinnerung um ${hhmm(mittag)}" }
                 }
             }
         } else if (z.buch == 0) {

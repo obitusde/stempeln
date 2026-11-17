@@ -69,7 +69,7 @@ object Anzeige {
             }
             z.pause > 0 -> "Pause gemacht: ${z.pause} min"
             z.status != "IN" && z.buch > 0 -> null
-            pauseOffen(z, now) -> "Pause geplant: $geplant min (Erinnerung um ${hhmm(l.e.mittag)})"
+            pauseOffen(z, now) -> "Pause geplant: $geplant min (Erinnerung um ${hhmm(l.e.mittagFuer(if (z.buch == 0) (l.zone ?: if (l.e.istHoTag(d)) "HO" else "SS") else z.ort))})"
             else -> null
         }
     }

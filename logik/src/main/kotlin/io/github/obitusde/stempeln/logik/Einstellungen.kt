@@ -1,4 +1,4 @@
-// Stempeln-Logik: Einstellungen (Datei Download/stempeln/einstellungen.txt, App und Skripte lesen sie) - v0.3.0
+// Stempeln-Logik: Einstellungen (Datei Download/stempeln/einstellungen.txt, App und Skripte lesen sie) - 5.4
 // Format wie zustand.txt, in der Shell mit "." ladbar. Zeiten als HH:MM.
 package io.github.obitusde.stempeln.logik
 
@@ -14,10 +14,13 @@ data class Einstellungen(
     val hoTage: Set<DayOfWeek> = setOf(DayOfWeek.TUESDAY, DayOfWeek.FRIDAY),
     val startHO: Int = Regeln.START_DI_FR,                    // Einstempel-Erinnerung ab (Home-Office-Tage)
     val startBuero: Int = Regeln.START_SONST,                 // ... (Buerotage)
-    val mittag: Int = Regeln.MITTAG,                          // Mittagspause-Erinnerung
+    val mittag: Int = Regeln.MITTAG,                          // Mittagspause-Erinnerung HUB / SUR SITE
     val wdh: Int = Regeln.WDH,                                // Erinnerung wiederholen alle ... min
     val abend: Int = Regeln.ABEND,                            // danach keine Erinnerungen mehr
+    val mittagHO: Int = Regeln.MITTAG_HO,                     // Mittagspause-Erinnerung Home Office
 ) {
+    /** Mittagspause-Erinnerung fuer den Knopf vom Einstempeln (HO = Home Office, sonst Buero). */
+    fun mittagFuer(ort: String?) = if (ort == "HO") mittagHO else mittag
     fun sollAm(d: LocalDate): Int = soll.filter { !it.first.isAfter(d) }.maxByOrNull { it.first }?.second ?: soll.first().second
     fun start(d: LocalDate) = if (d.dayOfWeek in hoTage) startHO else startBuero
     fun istHoTag(d: LocalDate) = d.dayOfWeek in hoTage
@@ -33,6 +36,7 @@ data class Einstellungen(
         "E_START_HO=${hhmm(startHO)}",
         "E_START_BUERO=${hhmm(startBuero)}",
         "E_MITTAG=${hhmm(mittag)}",
+        "E_MITTAG_HO=${hhmm(mittagHO)}",
         "E_WDH=$wdh",
         "E_ABEND=${hhmm(abend)}",
     ).joinToString("\n") + "\n"
@@ -52,7 +56,7 @@ data class Einstellungen(
             val ho = m["E_HO_TAGE"]?.mapNotNull { it.digitToIntOrNull()?.takeIf { n -> n in 1..7 }?.let { n -> DayOfWeek.of(n) } }?.toSet()
             return Einstellungen(soll, datumOderNull(m["E_ENDE"]) ?: d.ende, zahl("E_PAUSE_KURZ", d.pauseKurz, 240), zahl("E_PAUSE_SS", d.pauseSS, 240),
                 if (m.containsKey("E_HO_TAGE")) ho ?: d.hoTage else d.hoTage, zeit("E_START_HO", d.startHO), zeit("E_START_BUERO", d.startBuero),
-                zeit("E_MITTAG", d.mittag), zahl("E_WDH", d.wdh, 240), zeit("E_ABEND", d.abend))
+                zeit("E_MITTAG", d.mittag), zahl("E_WDH", d.wdh, 240), zeit("E_ABEND", d.abend), zeit("E_MITTAG_HO", d.mittagHO))
         }
     }
 }

@@ -346,7 +346,8 @@ class MainActivity : Activity() {
             "Home-Office-Tage: $tage" to { hoTage(e) },
             "Erinnerung ab (Home-Office-Tage): ${hhmm(e.startHO)}" to { uhr(e.startHO) { speichern(e.copy(startHO = it), "Erinnerung Home-Office-Tage ab ${hhmm(it)}") } },
             "Erinnerung ab (Bürotage): ${hhmm(e.startBuero)}" to { uhr(e.startBuero) { speichern(e.copy(startBuero = it), "Erinnerung Bürotage ab ${hhmm(it)}") } },
-            "Mittagspause-Erinnerung: ${hhmm(e.mittag)}" to { uhr(e.mittag) { speichern(e.copy(mittag = it), "Mittagspause-Erinnerung ${hhmm(it)}") } },
+            "Mittagspause-Erinnerung Home Office: ${hhmm(e.mittagHO)}" to { uhr(e.mittagHO) { speichern(e.copy(mittagHO = it), "Mittagspause-Erinnerung Home Office ${hhmm(it)}") } },
+            "Mittagspause-Erinnerung HUB / SUR SITE: ${hhmm(e.mittag)}" to { uhr(e.mittag) { speichern(e.copy(mittag = it), "Mittagspause-Erinnerung HUB / SUR SITE ${hhmm(it)}") } },
             "Erinnerung wiederholen alle: ${e.wdh} min" to { minuten("Erinnerung wiederholen alle", e.wdh) { speichern(e.copy(wdh = it), "Wiederholung alle $it min") } },
             "Keine Erinnerungen nach: ${hhmm(e.abend)}" to { uhr(e.abend) { speichern(e.copy(abend = it), "keine Erinnerungen nach ${hhmm(it)}") } },
         )

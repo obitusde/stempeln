@@ -1,6 +1,6 @@
 # Stempeln — Projektstand für Claude
 
-**Stand 16.11.2026** · **Gemeinsame Version 5.3**: App (`app/`, `logik/`) 5.3 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.3 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 (unverändert, `MAKRO_NOETIG` 5.0) · Workflow `.github/workflows/app.yml` v1.0.0
+**Stand 17.11.2026** · **Gemeinsame Version 5.4**: App (`app/`, `logik/`) 5.4 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.4 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 (unverändert, `MAKRO_NOETIG` 5.0) · Workflow `.github/workflows/app.yml` v1.0.0
 
 ## 1. Nutzer und Arbeitsweise (unbedingt beachten)
 - **Christof** (GitHub `obitusde`), Pixel 8 (Android 17), MacroDroid Pro + Shizuku. Will so wenig wie möglich selbst machen, kein Terminal.
@@ -26,7 +26,10 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 - Bauen in der Cloud: kein Android-SDK lokal → nur `logik` lokal testen (eigenes settings mit nur `:logik`), APK baut GitHub Actions (`curl https://api.github.com/repos/obitusde/stempeln/actions/runs?per_page=1`).
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
-1. (17.11.) Mittagspause-Erinnerung je nach Ort: **Home Office ab 12:15**, sonst (HUB, SUR SITE) **ab 11:45**; als Standard, in den Einstellungen änderbar (zwei Werte statt `E_MITTAG`: z. B. `E_MITTAG_HO=12:15`, `E_MITTAG=11:45`; Ort = Knopf vom Einstempeln `Z_ORT`).
+(leer)
+
+Umgesetzt 17.11. (Christof: „jetzt bauen“) – **5.4** (App; Skripte nur Nummer):
+- Mittagspause-Erinnerung je nach Knopf vom Einstempeln: Home Office **12:15** (`E_MITTAG_HO`, `Regeln.MITTAG_HO`), HUB/SUR SITE **11:45** (`E_MITTAG`); beide in den Einstellungen änderbar (`Einstellungen.mittagFuer`).
 
 Umgesetzt 16.11. (Christof: „b … Bau diese Sachen jetzt“) – **5.3** (App + Skripte, kein Makro-Import):
 - Skripte speichern alle Buchungen des Tages: `Z_ZEITEN='07:59 12:03 12:39'` (aus `LISTE` in `stand()`, haupt.sh gibt `A_LISTE` weiter, angenommener Stand hängt die Tippzeit an).
@@ -60,6 +63,7 @@ Umgesetzt 12.11. (Christof: „Setze das alles jetzt um“):
 - App v0.2.0: Status mit Fortschrittsbalken, Zeilen Arbeitszeit Soll / Bereits gearbeitet / Fehlt noch / Voraussichtlich Schluss (+ Erklärung, `logik/Anzeige.kt`, Pause 30/45 min eingerechnet), „Überstunden“ (= Saldo bis gestern) mit Arbeitstagen zu 8 h 25; Heures du jour, Rattrapage (= Urlaubs-Ansparminuten, egal), HS ausgeblendet; Planen +15/+30/+45 min/+1 h/17:00/17:30/Uhrzeit, Knopf „Zurück“; Urlaub: erster + **letzter Urlaubstag** mit Hinweis, Status zeigt Urlaub und „geht wieder los am …“; Meldungen verschwinden nach 60 s; Umlaute; Inhalt nicht mehr unter der Statusleiste.
 
 ## 4. Offen / zu testen (Pixel)
+00000000. 5.4 (17.11.): App + Skripte aktualisieren; Home Office: Mittag-Erinnerung erst 12:15.
 0000000. 5.3 (16.11.): App + Skripte aktualisieren, dann einmal „Stand lesen“ (erst danach gibt es `Z_ZEITEN`).
 000000. 5.2 (16.11.): App + Skripte aktualisieren. Prüfen: geplantes Stempeln mit Handy in der Tasche → Bildschirm geht an?
 00000. 5.1 (13.11.): App aktualisieren + Skripte aktualisieren (kein Makro-Import). Status-Band und „Plan löschen“ prüfen.

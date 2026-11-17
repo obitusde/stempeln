@@ -16,6 +16,19 @@ class WaechterTest {
     private fun zout(d: String, pres: Int, letzte: String, ort: String, buch: Int = 2) =
         Zustand(LocalDate.parse(d), "OUT", pres, 1, letzte, buch, ort, "")
 
+    @Test fun mittag_home_office_1215() {
+        val z = zin("2026-11-13", 240, "11:45", "07:45", "HO")
+        val a = Waechter.entscheide(lage("2026-11-13", "11:45", z))
+        assertNull(a.erinnerung); assertEquals(t("2026-11-13", "12:15"), a.wecker)
+        val b = Waechter.entscheide(lage("2026-11-13", "12:15", z.copy(pres = 270)))
+        assertEquals("Mittagspause", b.erinnerung!!.grund)
+        // in den Einstellungen geaendert: Home Office 12:30
+        val e = Einstellungen(mittagHO = 750)
+        val j = t("2026-11-13", "12:15")
+        assertNull(Waechter.entscheide(Lage(j, j.atZone(Regeln.ZONE).toEpochSecond(), z.copy(pres = 270), e = e)).erinnerung)
+        assertEquals(e, Einstellungen.aus(e.text()))
+    }
+
     @Test fun feiertage() {
         assertTrue(Feiertage.ist(LocalDate.of(2026, 4, 3)))   // Karfreitag 2026
         assertTrue(Feiertage.ist(LocalDate.of(2026, 9, 21)))  // Bettagsmontag 2026
