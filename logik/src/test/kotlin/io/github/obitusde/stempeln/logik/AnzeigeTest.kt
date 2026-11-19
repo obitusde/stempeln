@@ -109,5 +109,15 @@ class AnzeigeTest {
         assertEquals(480, Anzeige.angefangen(lage("2026-11-16", "09:00", alt)))
     }
 
+    @Test fun ort_in_der_app() {
+        val orte = leseOrte("HO;46.5000;6.5000;Zuhause;300|SS;46.6000;6.2000;Buero;1200")
+        val a = ortFuer(46.5010, 6.5000, 30, orte)!!          // ~111 m vom Zuhause
+        assertEquals("HO", a.typ); assertEquals("Zuhause", a.name); assertTrue(a.abstand in 100..120); assertTrue(a.sicher)
+        val b = ortFuer(46.4500, 6.5000, 30, orte)!!          // ~5,6 km weg
+        assertNull(b.typ); assertEquals("Zuhause", b.name); assertFalse(b.sicher)
+        assertFalse(ortFuer(46.5010, 6.5000, 900, orte)!!.sicher)   // zu ungenau
+        assertNull(ortFuer(46.5, 6.5, 10, emptyList()))
+    }
+
     private fun hhmmZuMin(s: String) = minutenOderNull(s)!!
 }

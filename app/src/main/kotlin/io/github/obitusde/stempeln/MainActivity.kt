@@ -1,4 +1,4 @@
-// Stempeln-App: Oberflaeche 5.3 - Angefangen, Pause, Buchungen, Schluss im Status-Band; farbiges Status-Band oben, Plan mit Knopf "Plan löschen"; Status mit Balken, Arbeitszeit (Soll / bereits / fehlt / Schluss), Pause, Ueberstunden,
+// Stempeln-App: Oberflaeche 5.6 - morgens Ort vor dem Stempeln (Standort beim Oeffnen, Auswahl wenn unklar); Angefangen, Pause, Buchungen, Schluss im Status-Band; farbiges Status-Band oben, Plan mit Knopf "Plan löschen"; Status mit Balken, Arbeitszeit (Soll / bereits / fehlt / Schluss), Pause, Ueberstunden,
 // Arbeitstage bis zum Arbeitsende, grosser Knopf zeigt Ein/Aus + Ort, Planen, Urlaub, Einstellungen. Rechnet nur, solange sie offen ist.
 package io.github.obitusde.stempeln
 
@@ -27,6 +27,10 @@ import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.widget.*
 import io.github.obitusde.stempeln.logik.*
+import android.annotation.SuppressLint
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -45,6 +49,10 @@ class MainActivity : Activity() {
     private lateinit var meldung: TextView
     private lateinit var infos: TextView
     private val h = Handler(Looper.getMainLooper())
+    // Ort vor dem ersten Einstempeln: nur solange die App offen ist, hoechstens alle 3 min ein Standort
+    private var treffer: OrtTreffer? = null
+    private var trefferZeit = 0L
+    private var sucht = false
     private val tick = object : Runnable { override fun run() { zeigen(); h.postDelayed(this, 30_000) } }
     private val meldungWeg = Runnable { meldung.text = ""; meldung.visibility = View.GONE }
     private val neu = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) = zeigen() }
@@ -107,7 +115,7 @@ class MainActivity : Activity() {
         statusKarte = karte(); kontoKarte = karte(); zaehlerKarte = karte()
         band = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         planZeile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        stempelTaste = taste("Stempeln", true) { befehl("stempeln") }
+        stempelTaste = taste("Stempeln", true) { stempelnDruecken() }
         meldung = text(15f, farbe = blau).apply { visibility = View.GONE; setPadding(dp(4), dp(6), dp(4), dp(6)) }
         infos = text(13f, farbe = grau)
         val inhalt = LinearLayout(this).apply {
@@ -143,6 +151,61 @@ class MainActivity : Activity() {
         h.removeCallbacks(meldungWeg); meldung.text = s; meldung.visibility = View.VISIBLE; h.postDelayed(meldungWeg, 60_000)
     }
 
+    /** Ort fuer das erste Einstempeln, wie er auf dem Knopf steht. */
+    private fun morgenOrt(l: Lage): String {
+        val t = treffer
+        return when {
+            t != null && t.sicher -> knopf(t.typ) + " (" + t.name + ")"
+            t != null && t.typ != null -> knopf(t.typ) + " (" + t.name + ", ungenau – du wählst)"
+            t != null -> "Ort unbekannt – nächster: ${t.name}, " + km(t.abstand) + " (du wählst)"
+            sucht -> "Ort wird bestimmt …"
+            l.zone != null -> knopf(l.zone) + (Steuerung.aktuelleZonenName(this)?.let { " ($it)" } ?: "")
+            else -> "Ort unbekannt (du wählst)"
+        }
+    }
+    private fun km(m: Int) = if (m < 1000) "$m m" else String.format(java.util.Locale.GERMAN, "%.1f km", m / 1000.0)
+
+    @SuppressLint("MissingPermission")
+    private fun standortHolen() {
+        if (sucht || System.currentTimeMillis() - trefferZeit < 180_000) return
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+        sucht = true
+        try {
+            LocationServices.getFusedLocationProviderClient(this)
+                .getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, CancellationTokenSource().token)
+                .addOnSuccessListener { loc ->
+                    sucht = false; trefferZeit = System.currentTimeMillis()
+                    if (loc != null) treffer = ortFuer(loc.latitude, loc.longitude, loc.accuracy.toInt(), Speicher.orte())
+                    zeigen() }
+                .addOnFailureListener { sucht = false; trefferZeit = System.currentTimeMillis(); zeigen() }
+        } catch (e: Exception) { sucht = false; trefferZeit = System.currentTimeMillis() }
+    }
+
+    /** Grosser Knopf: morgens mit dem angezeigten (oder gewaehlten) Ort, sonst wie bisher (Knopf vom Morgen). */
+    private fun stempelnDruecken() {
+        val z = Waechter.heute(Steuerung.lage(this))
+        if (z.buch > 0) { befehl("stempeln"); return }
+        val t = treffer
+        if (t != null && t.sicher) { mitKnopf(t.typ!!, t.name); return }
+        val typen = listOf("HO", "HUB", "SS")
+        val orte = Speicher.orte()
+        AlertDialog.Builder(this)
+            .setTitle("Wo bist du?" + (t?.let { " (nächster bekannter Ort: ${it.name}, ${km(it.abstand)})" } ?: ""))
+            .setItems(typen.map { knopf(it) + (orte.firstOrNull { o -> o.typ == it }?.let { o -> " (${o.name})" } ?: "") }.toTypedArray()) { _, i ->
+                val typ = typen[i]
+                mitKnopf(typ, orte.filter { it.typ == typ }.minByOrNull { if (t != null && it.name == t.name) 0 else 1 }?.name ?: "") }
+            .setNegativeButton("Abbrechen", null).show()
+    }
+
+    /** Einstempeln mit genau diesem Knopf: knopf.txt fuer die Skripte (gilt 5 min), alte Erinnerung verwerfen. */
+    private fun mitKnopf(typ: String, name: String) {
+        Speicher.schreib("knopf.txt", "K_TYP=$typ\nK_NAME='${name.replace("'", "")}'\nK_ZEIT=${Steuerung.epoch()}\n")
+        Speicher.loesch("vorschlag.txt")
+        Steuerung.makro(this, "stempeln")
+        melde("Einstempeln · ${knopf(typ)}" + (if (name.isNotEmpty()) " ($name)" else "") + " läuft – danach kommst du hierher zurück")
+    }
+
     private fun befehl(b: String) {
         Steuerung.makro(this, b)
         melde(if (b == "stand") "Stand lesen läuft – danach kommst du hierher zurück" else "Stempeln läuft – danach kommst du hierher zurück")
@@ -155,7 +218,8 @@ class MainActivity : Activity() {
         val l = Steuerung.lage(this)
         val se = l.e
         val z = Waechter.heute(l)
-        stempelTaste.text = Anzeige.naechstes(l, Steuerung.aktuelleZonenName(this)).text
+        if (z.buch == 0 && Waechter.istArbeitstag(l.jetzt.toLocalDate(), Speicher.urlaub(this))) standortHolen()
+        stempelTaste.text = if (z.buch == 0) "Einstempeln · " + morgenOrt(l) else Anzeige.naechstes(l, Steuerung.aktuelleZonenName(this)).text
         val heute = l.jetzt.toLocalDate()
         val u = Speicher.urlaub(this)
         val k = statusKarte
@@ -173,8 +237,7 @@ class MainActivity : Activity() {
             val pauseText = Anzeige.pause(l)
             val pauseLaeuft = pauseText?.startsWith("Pause läuft") == true
             when {
-                z.buch == 0 -> zeigeBand("NOCH NICHT EINGESTEMPELT",
-                    Steuerung.aktuelleZone(this)?.let { "Ort: " + knopf(it) } ?: "Erinnerung ab ${hhmm(se.start(heute))}", 0xFF546E7A.toInt())
+                z.buch == 0 -> zeigeBand("NOCH NICHT EINGESTEMPELT", "Ort: " + morgenOrt(l) + " · Erinnerung ab ${hhmm(se.start(heute))}", 0xFF546E7A.toInt())
                 z.status == "IN" -> zeigeBand("EINGESTEMPELT", "seit ${z.letzte}" + ortText(z.ort) +
                     if (voll) " · Soll erreicht" else " · noch ${Anzeige.lang(g.fehlt)} · Schluss ${g.schluss?.let { hhmm(it) } ?: "–"}", gruen)
                 pauseLaeuft -> zeigeBand("PAUSE", pauseText!!.removePrefix("Pause läuft "), orange)

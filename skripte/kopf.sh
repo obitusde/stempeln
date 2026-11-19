@@ -1,6 +1,6 @@
 # Stempel-Skripte - gemeinsamer Kopf (Version siehe SKV = gemeinsame Version von App, Skripten und Makros)
 # Wird von den Makro-Huellen geladen: vorher gesetzt LAT LON FREI TEXT (Magic Text aus MacroDroid)
-SKV=5.5
+SKV=5.6
 B=/sdcard/Download/stempeln
 mkdir -p $B
 DEBUG=0
@@ -73,7 +73,9 @@ ort() { TYP=""; DIST=""; RAD=""; NAME=""
 label() { case "$1" in HO) echo "HOME OFFICE" ;; HUB) echo "HUB" ;; SS) echo "SUR SITE" ;; *) echo "unbekannter Ort, du tippst selbst" ;; esac; }
 # Welcher Knopf fuer Richtung $1 (EIN/AUS)? Heute schon eingestempelt -> Knopf vom Einstempeln (Z_ORT, du bleibst dort),
 # sonst Standort (vorher ort aufrufen) -> KTYP KNAME LABEL (KTYP leer = unbekannter Ort)
-wahl() { if [ -n "$Z_ORT" ]; then KTYP=$Z_ORT; KNAME=$Z_NAME
+# Knopf, den du in der App gesehen/gewaehlt hast (knopf.txt, gilt 5 min) hat beim Einstempeln Vorrang vor dem GPS
+wahl() { if [ "$1" = EIN ] && [ -n "$K_TYP" ] && [ -z "$Z_ORT" ]; then KTYP=$K_TYP; KNAME=$K_NAME
+  elif [ -n "$Z_ORT" ]; then KTYP=$Z_ORT; KNAME=$Z_NAME
   elif [ -n "$TYP" ] && [ "$DIST" -le "$RAD" ]; then KTYP=$TYP; KNAME=$NAME
   else KTYP=""; KNAME=""; fi
   LABEL=$(label "$KTYP"); }
@@ -128,3 +130,6 @@ soll_am() { s=$SOLL; set -f; alt=$IFS; IFS=','; for e in $E_SOLL; do [[ "${e%%=*
 pause_fuer() { if [ "$1" = SS ]; then echo $PAUSE_SS; else echo $PAUSE_KURZ; fi; }
 jetzt
 SOLL=$(soll_am $HEUTE)
+# Knopf aus der App (K_TYP HO/HUB/SS, K_NAME, K_ZEIT) - nur wenn hoechstens 5 min alt
+K_TYP=""; K_NAME=""; K_ZEIT=0; [ -f $B/knopf.txt ] && . $B/knopf.txt
+[ $(( EPOCH - ${K_ZEIT:-0} )) -lt 300 ] || { K_TYP=""; K_NAME=""; }

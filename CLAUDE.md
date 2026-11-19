@@ -1,6 +1,6 @@
 # Stempeln — Projektstand für Claude
 
-**Stand 17.11.2026** · **Gemeinsame Version 5.5**: App (`app/`, `logik/`) 5.5 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.5 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 (unverändert, `MAKRO_NOETIG` 5.0) · Workflow `.github/workflows/app.yml` v1.0.0
+**Stand 19.11.2026** · **Gemeinsame Version 5.6**: App (`app/`, `logik/`) 5.6 · Skripte (`skripte/`, `SKV` in `kopf.sh`) 5.6 · Makros (`makros/`) „Stempeln“ + „Stempeln Stand“ 5.0 (unverändert, `MAKRO_NOETIG` 5.0) · Workflow `.github/workflows/app.yml` v1.0.0
 
 ## 1. Nutzer und Arbeitsweise (unbedingt beachten)
 - **Christof** (GitHub `obitusde`), Pixel 8 (Android 17), MacroDroid Pro + Shizuku. Will so wenig wie möglich selbst machen, kein Terminal.
@@ -27,6 +27,10 @@ App "Stempeln" (io.github.obitusde.stempeln)        MacroDroid (Huellen)        
 
 ## 3. Sammelliste – erst bauen, wenn Christof es sagt
 (leer)
+
+Umgesetzt 19.11. (Christof: „1a 2a, immer anzeigen … bauen“) – **5.6** (App + Skripte, kein Makro-Import):
+- Morgens (heute noch nicht gestempelt, Arbeitstag) holt die App **beim Öffnen** einmal den Standort (`PRIORITY_BALANCED_POWER_ACCURACY`, höchstens alle 3 min, nur solange offen) und vergleicht mit `orte.txt` (`ortFuer`, Haversine, Radius wie `wahl()`); Knopf + Band zeigen „Einstempeln · HOME OFFICE (Name)“ / „Ort unbekannt – nächster: X, 12 km (du wählst)“.
+- Tippen: Ort sicher (im Radius, Genauigkeit ≤ 500 m) → sofort; sonst Auswahl „Wo bist du? HOME OFFICE / HUB / SUR SITE / Abbrechen“. Die App schreibt `knopf.txt` (`K_TYP`, `K_NAME`, `K_ZEIT`, gilt 5 min) und löscht `vorschlag.txt`; `wahl EIN` nimmt `K_TYP` vor dem GPS (nur ohne `Z_ORT`); ende.sh löscht `knopf.txt`. Ausstempeln/nach der Pause unverändert (Knopf vom Morgen).
 
 Umgesetzt 17.11. (Christof: „a … jetzt bauen“) – **5.5** (Skripte; App nur Nummer):
 - Stempel-Tab schließen: `ende.sh` ruft vor `zurueck` `tab_zu` (kopf.sh): bis zu 4× `KEYCODE_BACK`, nur solange `chrome_vorne` (dumpsys window mCurrentFocus/mFocusedApp enthält com.android.chrome). Ungetestet am Pixel: schließt Chrome den wiederverwendeten Tab wirklich? Sonst Variante b (Custom Tab, Makro-Import).
@@ -66,6 +70,7 @@ Umgesetzt 12.11. (Christof: „Setze das alles jetzt um“):
 - App v0.2.0: Status mit Fortschrittsbalken, Zeilen Arbeitszeit Soll / Bereits gearbeitet / Fehlt noch / Voraussichtlich Schluss (+ Erklärung, `logik/Anzeige.kt`, Pause 30/45 min eingerechnet), „Überstunden“ (= Saldo bis gestern) mit Arbeitstagen zu 8 h 25; Heures du jour, Rattrapage (= Urlaubs-Ansparminuten, egal), HS ausgeblendet; Planen +15/+30/+45 min/+1 h/17:00/17:30/Uhrzeit, Knopf „Zurück“; Urlaub: erster + **letzter Urlaubstag** mit Hinweis, Status zeigt Urlaub und „geht wieder los am …“; Meldungen verschwinden nach 60 s; Umlaute; Inhalt nicht mehr unter der Statusleiste.
 
 ## 4. Offen / zu testen (Pixel)
+0000000000. 5.6 (19.11.): morgens App öffnen → Knopf zeigt Ort? Unbekannter Ort → Auswahl → richtig gestempelt?
 000000000. 5.5 (17.11.): App + Skripte aktualisieren; nach Stempeln/Stand: ist der Stempel-Tab in Chrome weg? (Tab-Übersicht)
 00000000. 5.4 (17.11.): App + Skripte aktualisieren; Home Office: Mittag-Erinnerung erst 12:15.
 0000000. 5.3 (16.11.): App + Skripte aktualisieren, dann einmal „Stand lesen“ (erst danach gibt es `Z_ZEITEN`).

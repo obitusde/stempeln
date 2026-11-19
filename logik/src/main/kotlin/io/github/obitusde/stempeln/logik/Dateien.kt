@@ -103,3 +103,24 @@ fun lesePaket(text: String): Paket? {
     for (pflicht in listOf("kopf.sh", "haupt.sh", "ende.sh", "start.sh")) if (d[pflicht].isNullOrBlank()) return null
     return Paket(v!!, d.mapValues { it.value.toString() })
 }
+
+/** Abstand in Metern (Haversine). */
+fun abstandM(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Int {
+    val r = 6371000.0
+    val p1 = Math.toRadians(lat1); val p2 = Math.toRadians(lat2)
+    val dp = Math.toRadians(lat2 - lat1); val dl = Math.toRadians(lon2 - lon1)
+    val a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2)
+    return (2 * r * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toInt()
+}
+
+/** Ergebnis der Ortsbestimmung in der App: typ = Knopf, wenn du im Radius des naechsten Orts bist (sonst null);
+ *  name/abstand = naechster bekannter Ort; genau = Genauigkeit des Standorts (m). Wie wahl() in den Skripten. */
+data class OrtTreffer(val typ: String?, val name: String, val abstand: Int, val genau: Int) {
+    val sicher get() = typ != null && genau <= 500
+}
+
+fun ortFuer(lat: Double, lon: Double, genau: Int, orte: List<Ort>): OrtTreffer? {
+    val n = orte.minByOrNull { abstandM(lat, lon, it.lat, it.lon) } ?: return null
+    val d = abstandM(lat, lon, n.lat, n.lon)
+    return OrtTreffer(if (d <= n.radius) n.typ else null, n.name, d, genau)
+}
